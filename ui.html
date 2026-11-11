@@ -854,9 +854,9 @@
         <div class="field">
           <label for="selectEngine">Screenshot Engine</label>
           <select id="selectEngine">
-            <option value="auto" selected>Auto (Multi-Engine Whole Screen)</option>
+            <option value="pagespeed" selected>Google Lighthouse API (Full-Page)</option>
+            <option value="auto">Google Lighthouse + Fallback</option>
             <option value="microlink">Microlink Cloud (Full-Page)</option>
-            <option value="pagespeed">Google Lighthouse (Full-Page)</option>
             <option value="local">Local Server (localhost:3456)</option>
           </select>
         </div>
@@ -864,11 +864,23 @@
         <div class="field">
           <label for="selectConcurrency">Parallel Speed</label>
           <select id="selectConcurrency">
-            <option value="3">3 at a time (Safe)</option>
-            <option value="4" selected>4 at a time (Recommended)</option>
-            <option value="6">6 at a time (Fast)</option>
+            <option value="2">2 at a time (Safest for Public Quota)</option>
+            <option value="3" selected>3 at a time (Recommended for Lighthouse)</option>
+            <option value="4">4 at a time (Fast)</option>
+            <option value="6">6 at a time (With API Key)</option>
           </select>
         </div>
+      </div>
+
+      <div class="field" style="margin-top: 2px;">
+        <label for="inputGoogleApiKey">
+          Google PageSpeed / Lighthouse API Key <span style="color: var(--text-muted); font-weight: 400;">(Optional — works without key, add key for higher bulk quota)</span>
+        </label>
+        <input
+          id="inputGoogleApiKey"
+          type="text"
+          placeholder="Optional: AIzaSy... (Google Cloud PageSpeed Insights API Key)"
+        />
       </div>
     </section>
   </main>
