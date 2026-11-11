@@ -1,0 +1,19 @@
+{
+  "name": "bulk-website-screenshot-figma-plugin",
+  "version": "1.0.0",
+  "description": "Figma plugin to bulk screenshot 10+ websites at a time and place them on the canvas in an organized grid.",
+  "main": "code.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "figma",
+    "figma-plugin",
+    "screenshot",
+    "bulk-screenshot"
+  ],
+  "license": "MIT",
+  "optionalDependencies": {
+    "puppeteer": "^22.0.0"
+  }
+}

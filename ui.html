@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bulk Website Screenshot (Whole Screen)</title>
+  <style>
+    :root {
+      --bg-primary: #0f1117;
+      --bg-secondary: #171a24;
+      --bg-tertiary: #1f2433;
+      --bg-hover: #262c3f;
+      --border-color: #2a3146;
+      --border-focus: #6366f1;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-soft: rgba(99, 102, 241, 0.14);
+      --success: #10b981;
+      --success-soft: rgba(16, 185, 129, 0.14);
+      --warning: #f59e0b;
+      --warning-soft: rgba(245, 158, 11, 0.14);
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.14);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 12px;
+      line-height: 1.45;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Top Header & Stepper Flow */
+    .header {
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .brand-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      background: var(--bg-primary);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .step-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .step-tab.active {
+      background: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    }
+
+    .step-num {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.16);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    /* Main Content Container */
+    .main-view {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Section Card */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-soft);
+      color: #818cf8;
+    }
+
+    .badge.ready-ten {
+      background: var(--success-soft);
+      color: #34d399;
+    }
+
+    .badge.warn {
+      background: var(--warning-soft);
+      color: #fbbf24;
+    }
+
+    /* Quick Action Toolbar */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .btn-chip {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-chip:hover {
+      background: var(--bg-hover);
+      border-color: #3f4868;
+    }
+
+    .btn-chip.active-toggle {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: #a5b4fc;
+    }
+
+    /* Bulk URL Textarea */
+    .textarea-wrap {
+      position: relative;
+    }
+
+    textarea.url-input {
+      width: 100%;
+      min-height: 135px;
+      max-height: 240px;
+      resize: vertical;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 11.5px;
+      line-height: 1.55;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    textarea.url-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    textarea.url-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .helper-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* Parsed URL Pills Preview */
+    .parsed-list {
+      max-height: 130px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-right: 2px;
+    }
+
+    .parsed-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
+      font-size: 11px;
+    }
+
+    .parsed-item-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .parsed-index {
+      font-family: monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg-secondary);
+      padding: 1px 5px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .parsed-favicon {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .parsed-url {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-primary);
+    }
+
+    .btn-remove-url {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .btn-remove-url:hover {
+      color: var(--danger);
+      background: var(--danger-soft);
+    }
+
+    /* Settings Grid */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    select,
+    input[type="number"],
+    input[type="text"] {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      font-size: 11.5px;
+      outline: none;
+    }
+
+    select:focus,
+    input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+    }
+
+    .toggle-row.highlight-whole-screen {
+      border-color: rgba(99, 102, 241, 0.55);
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .toggle-label {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toggle-label span {
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .toggle-label small {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Footer Bar */
+    .footer {
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .btn-primary {
+      flex: 1;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 9px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+    }
+
+    .btn-danger {
+      background: var(--danger-soft);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 9px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* Step 2: Progress & Live Screenshot Cards */
+    .progress-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .progress-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .progress-stats {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .progress-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .progress-bar-track {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-primary);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #6366f1, #10b981);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    /* Queue List in Step 2 */
+    .capture-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+
+    .capture-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.15s ease;
+    }
+
+    .capture-item.status-capturing {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.06);
+    }
+
+    .capture-item.status-done {
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .capture-item.status-error {
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .capture-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .capture-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .capture-host {
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .thumb-box {
+      width: 100%;
+      height: 170px;
+      border-radius: 6px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .thumb-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .thumb-placeholder {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .capture-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .capture-url {
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .capture-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .capture-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 5px;
+    }
+
+    .status-pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .status-pill.queued {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+    }
+
+    .status-pill.capturing {
+      background: var(--accent-soft);
+      color: #818cf8;
+    }
+
+    .status-pill.done {
+      background: var(--success-soft);
+      color: #34d399;
+    }
+
+    .status-pill.error {
+      background: var(--danger-soft);
+      color: #f87171;
+    }
+
+    /* Whole-Screen Preview Lightbox Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 10, 16, 0.88);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      padding: 14px;
+      gap: 10px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .modal-body img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      display: block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spinner {
+      width: 11px;
+      height: 11px;
+      border: 2px solid rgba(129, 140, 248, 0.3);
+      border-top-color: #818cf8;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Header with 2-Step Flow + Whole Screen Toggle -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-icon">📸</div>
+      <div>
+        <div class="brand-title">Bulk Website Screenshot</div>
+        <div class="brand-subtitle">Share 10+ URLs → Full Whole-Screen Capture</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="btnToggleFullscreenUI" class="btn-chip" type="button" title="Expand plugin window to whole screen">
+        ⛶ Whole Screen UI
+      </button>
+
+      <div class="stepper">
+        <button id="tabStep1" class="step-tab active" type="button">
+          <span class="step-num">1</span> Share URLs
+        </button>
+        <button id="tabStep2" class="step-tab" type="button">
+          <span class="step-num">2</span> Screenshot
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- STEP 1: SHARE URLS -->
+  <main id="viewStep1" class="main-view">
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🔗 Paste or Share Website URLs</span>
+        </div>
+        <span id="urlCountBadge" class="badge">0 URLs</span>
+      </div>
+
+      <div class="toolbar">
+        <button id="btnLoadSample10" class="btn-chip" type="button" title="Populate 10 popular websites to test right away">
+          ✨ Load 10 Sample Sites
+        </button>
+        <button id="btnExtractText" class="btn-chip" type="button" title="Extract URLs from any messy text or markdown">
+          🔍 Extract URLs
+        </button>
+        <label class="btn-chip" title="Import URLs from a .txt or .csv file">
+          📂 Import TXT/CSV
+          <input id="fileImportInput" type="file" accept=".txt,.csv,.md,.json" style="display: none;" />
+        </label>
+        <button id="btnClearUrls" class="btn-chip" type="button">
+          🗑️ Clear
+        </button>
+      </div>
+
+      <div class="textarea-wrap">
+        <textarea
+          id="urlTextarea"
+          class="url-input"
+          placeholder="Paste 10 or more website URLs (one per line or comma-separated)...&#10;Example:&#10;https://stripe.com&#10;https://linear.app&#10;https://vercel.com&#10;https://figma.com&#10;https://github.com&#10;https://notion.so&#10;https://raycast.com&#10;https://supabase.com&#10;https://openai.com&#10;https://tailwindcss.com"
+        ></textarea>
+      </div>
+
+      <div class="helper-row">
+        <span id="batchRequirementHint">Tip: Add at least 10 URLs for bulk capture (supports 50+ at once).</span>
+        <label style="display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
+          <input id="chkDedupe" type="checkbox" checked />
+          Remove duplicates
+        </label>
+      </div>
+
+      <!-- Live Parsed URL List -->
+      <div id="parsedListContainer" class="parsed-list hidden"></div>
+    </section>
+
+    <!-- Screenshot & Layout Settings -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">⚙️ Whole-Screen Capture & Figma Layout Settings</div>
+      </div>
+
+      <div class="settings-grid">
+        <label class="toggle-row highlight-whole-screen" style="cursor: pointer;">
+          <div class="toggle-label">
+            <span>Whole Screen (Full-Page)</span>
+            <small>Capture entire website top-to-bottom</small>
+          </div>
+          <!-- Enabled by default so the entire website screen is captured without cropping -->
+          <input id="chkFullPage" type="checkbox" checked />
+        </label>
+
+        <label class="toggle-row" style="cursor: pointer;">
+          <div class="toggle-label">
+            <span>Browser Header Frame</span>
+            <small>Add top bar & clickable URL</small>
+          </div>
+          <input id="chkBrowserHeader" type="checkbox" checked />
+        </label>
+      </div>
+
+      <div class="settings-grid">
+        <div class="field">
+          <label for="selectViewport">Screen Width Preset</label>
+          <select id="selectViewport">
+            <option value="1440x900" selected>Desktop (1440px Wide • Full Height)</option>
+            <option value="1920x1080">Full HD (1920px Wide • Full Height)</option>
+            <option value="1280x800">Laptop (1280px Wide • Full Height)</option>
+            <option value="768x1024">Tablet (768px Wide • Full Height)</option>
+            <option value="390x844">Mobile iPhone (390px Wide • Full Height)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="selectColumns">Figma Grid Layout</label>
+          <select id="selectColumns">
+            <option value="5" selected>5 Columns (2 rows for 10 sites)</option>
+            <option value="4">4 Columns</option>
+            <option value="3">3 Columns</option>
+            <option value="2">2 Columns</option>
+            <option value="10">10 Columns (Single row)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="selectEngine">Screenshot Engine</label>
+          <select id="selectEngine">
+            <option value="auto" selected>Auto (Multi-Engine Whole Screen)</option>
+            <option value="microlink">Microlink Cloud (Full-Page)</option>
+            <option value="pagespeed">Google Lighthouse (Full-Page)</option>
+            <option value="local">Local Server (localhost:3456)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="selectConcurrency">Parallel Speed</label>
+          <select id="selectConcurrency">
+            <option value="3">3 at a time (Safe)</option>
+            <option value="4" selected>4 at a time (Recommended)</option>
+            <option value="6">6 at a time (Fast)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- STEP 2: SCREENSHOT PROGRESS & LIVE WHOLE-SCREEN PREVIEWS -->
+  <main id="viewStep2" class="main-view hidden">
+    <section class="progress-card">
+      <div class="progress-top">
+        <div>
+          <div id="progressHeadline" class="progress-stats">Ready to capture whole screen</div>
+          <div id="progressSubtext" class="progress-sub">Scrollable full-page previews below • Placed in full resolution on Figma canvas</div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button id="btnZoomAllFigma" class="btn-chip" type="button" title="Zoom Figma canvas to fit all screenshots on screen">
+            🗺️ Fit All in Figma
+          </button>
+          <button id="btnRetryFailed" class="btn-chip hidden" type="button">
+            🔄 Retry Failed
+          </button>
+        </div>
+      </div>
+      <div class="progress-bar-track">
+        <div id="progressBarFill" class="progress-bar-fill"></div>
+      </div>
+    </section>
+
+    <section id="captureQueueList" class="capture-grid"></section>
+  </main>
+
+  <!-- Whole-Screen Lightbox Preview Modal inside Plugin -->
+  <div id="previewModal" class="modal-backdrop hidden">
+    <div class="modal-header">
+      <div id="previewModalTitle" style="font-weight: 600; font-size: 12px;">Whole-Screen Preview</div>
+      <button id="btnClosePreviewModal" class="btn-chip" type="button">✕ Close Preview</button>
+    </div>
+    <div class="modal-body">
+      <img id="previewModalImg" src="" alt="Full website preview" />
+    </div>
+  </div>
+
+  <!-- Footer CTA -->
+  <footer class="footer">
+    <button id="btnBackToStep1" class="btn-secondary hidden" type="button">
+      ← Edit URLs
+    </button>
+    <button id="btnStopBatch" class="btn-danger hidden" type="button">
+      ⏹ Stop
+    </button>
+    <button id="btnStartScreenshot" class="btn-primary" type="button">
+      📸 Screenshot Whole Screen →
+    </button>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // Bulk Website Screenshot — Whole-Screen UI & Capture Pipeline
+    // =========================================================================
+
+    const SAMPLE_10_URLS = [
+      "https://stripe.com",
+      "https://linear.app",
+      "https://vercel.com",
+      "https://www.figma.com",
+      "https://github.com",
+      "https://www.notion.so",
+      "https://www.raycast.com",
+      "https://supabase.com",
+      "https://tailwindcss.com",
+      "https://openai.com"
+    ];
+
+    // DOM Elements
+    const btnToggleFullscreenUI = document.getElementById("btnToggleFullscreenUI");
+    const tabStep1 = document.getElementById("tabStep1");
+    const tabStep2 = document.getElementById("tabStep2");
+    const viewStep1 = document.getElementById("viewStep1");
+    const viewStep2 = document.getElementById("viewStep2");
+
+    const urlTextarea = document.getElementById("urlTextarea");
+    const urlCountBadge = document.getElementById("urlCountBadge");
+    const batchRequirementHint = document.getElementById("batchRequirementHint");
+    const parsedListContainer = document.getElementById("parsedListContainer");
+    const chkDedupe = document.getElementById("chkDedupe");
+
+    const btnLoadSample10 = document.getElementById("btnLoadSample10");
+    const btnExtractText = document.getElementById("btnExtractText");
+    const fileImportInput = document.getElementById("fileImportInput");
+    const btnClearUrls = document.getElementById("btnClearUrls");
+
+    const selectViewport = document.getElementById("selectViewport");
+    const selectColumns = document.getElementById("selectColumns");
+    const selectEngine = document.getElementById("selectEngine");
+    const selectConcurrency = document.getElementById("selectConcurrency");
+    const chkFullPage = document.getElementById("chkFullPage");
+    const chkBrowserHeader = document.getElementById("chkBrowserHeader");
+
+    const progressHeadline = document.getElementById("progressHeadline");
+    const progressSubtext = document.getElementById("progressSubtext");
+    const progressBarFill = document.getElementById("progressBarFill");
+    const btnZoomAllFigma = document.getElementById("btnZoomAllFigma");
+    const btnRetryFailed = document.getElementById("btnRetryFailed");
+    const captureQueueList = document.getElementById("captureQueueList");
+
+    const previewModal = document.getElementById("previewModal");
+    const previewModalTitle = document.getElementById("previewModalTitle");
+    const previewModalImg = document.getElementById("previewModalImg");
+    const btnClosePreviewModal = document.getElementById("btnClosePreviewModal");
+
+    const btnBackToStep1 = document.getElementById("btnBackToStep1");
+    const btnStopBatch = document.getElementById("btnStopBatch");
+    const btnStartScreenshot = document.getElementById("btnStartScreenshot");
+
+    // State
+    let isUiMaximized = false;
+    let parsedUrls = [];
+    let currentBatchId = null;
+    let isCapturing = false;
+    let stopRequested = false;
+    let batchItems = [];
+
+    // -------------------------------------------------------------------------
+    // Whole-Screen Plugin UI Window Resize Toggle
+    // -------------------------------------------------------------------------
+
+    btnToggleFullscreenUI.addEventListener("click", () => {
+      isUiMaximized = !isUiMaximized;
+      btnToggleFullscreenUI.classList.toggle("active-toggle", isUiMaximized);
+      btnToggleFullscreenUI.textContent = isUiMaximized
+        ? "🗗 Compact UI"
+        : "⛶ Whole Screen UI";
+
+      parent.postMessage(
+        {
+          pluginMessage: {
+            type: "RESIZE_UI",
+            width: isUiMaximized ? 1240 : 680,
+            height: isUiMaximized ? 860 : 780
+          }
+        },
+        "*"
+      );
+    });
+
+    btnZoomAllFigma.addEventListener("click", () => {
+      if (!currentBatchId) return;
+      parent.postMessage(
+        {
+          pluginMessage: {
+            type: "ZOOM_ALL",
+            batchId: currentBatchId
+          }
+        },
+        "*"
+      );
+    });
+
+    btnClosePreviewModal.addEventListener("click", () => {
+      previewModal.classList.add("hidden");
+      previewModalImg.src = "";
+    });
+
+    // -------------------------------------------------------------------------
+    // URL Parsing & Normalization
+    // -------------------------------------------------------------------------
+
+    function normalizeSingleUrl(raw) {
+      if (!raw) return null;
+      let str = raw.trim().replace(/^["'<({\[]+|["'>)}\],;]+$/g, "");
+      if (!str) return null;
+
+      if (!/^https?:\/\//i.test(str)) {
+        if (
+          /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(\/.*)?$/.test(str) ||
+          /^localhost(:\d+)?(\/.*)?$/i.test(str)
+        ) {
+          str = (str.startsWith("localhost") ? "http://" : "https://") + str;
+        } else {
+          return null;
+        }
+      }
+
+      try {
+        const u = new URL(str);
+        if (!u.hostname || (!u.hostname.includes(".") && u.hostname !== "localhost")) {
+          return null;
+        }
+        return u.href;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function parseUrlsFromText(text, dedupe = true) {
+      if (!text || !text.trim()) return [];
+      const tokens = text
+        .split(/[\r\n,;]+|\s+(?=https?:\/\/)/g)
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const results = [];
+      const seen = new Set();
+
+      for (const token of tokens) {
+        const subTokens = token.split(/\s+/);
+        for (const sub of subTokens) {
+          const normalized = normalizeSingleUrl(sub);
+          if (normalized) {
+            const key = normalized.replace(/\/$/, "").toLowerCase();
+            if (!dedupe || !seen.has(key)) {
+              seen.add(key);
+              results.push(normalized);
+            }
+          }
+        }
+      }
+      return results;
+    }
+
+    function getHostname(url) {
+      try {
+        return new URL(url).hostname.replace(/^www\./, "");
+      } catch (_) {
+        return url;
+      }
+    }
+
+    function updateParsedUrlsUI() {
+      parsedUrls = parseUrlsFromText(urlTextarea.value, chkDedupe.checked);
+      const count = parsedUrls.length;
+      const modeLabel = chkFullPage.checked ? "Whole Screen" : "Viewport";
+
+      urlCountBadge.textContent = `${count} URL${count === 1 ? "" : "s"}`;
+      urlCountBadge.className =
+        "badge " + (count >= 10 ? "ready-ten" : count > 0 ? "warn" : "");
+
+      if (count >= 10) {
+        batchRequirementHint.textContent = `✅ ${count} websites ready for ${modeLabel.toLowerCase()} bulk screenshot capture!`;
+        batchRequirementHint.style.color = "#34d399";
+      } else if (count > 0) {
+        batchRequirementHint.textContent = `${count} URL${
+          count === 1 ? "" : "s"
+        } added (${10 - count} more for a 10-site bulk batch, or capture now).`;
+        batchRequirementHint.style.color = "#fbbf24";
+      } else {
+        batchRequirementHint.textContent =
+          "Tip: Paste 10+ URLs at once, or click 'Load 10 Sample Sites' above.";
+        batchRequirementHint.style.color = "";
+      }
+
+      btnStartScreenshot.disabled = count === 0 || isCapturing;
+      btnStartScreenshot.innerHTML =
+        count > 0
+          ? `📸 Screenshot ${count} Website${count === 1 ? "" : "s"} (${modeLabel}) →`
+          : `📸 Screenshot Whole Screen →`;
+
+      if (count === 0) {
+        parsedListContainer.classList.add("hidden");
+        parsedListContainer.innerHTML = "";
+        return;
+      }
+
+      parsedListContainer.classList.remove("hidden");
+      parsedListContainer.innerHTML = parsedUrls
+        .map((url, i) => {
+          const host = getHostname(url);
+          const fav = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(
+            host
+          )}&sz=32`;
+          return `
+            <div class="parsed-item">
+              <div class="parsed-item-left">
+                <span class="parsed-index">#${String(i + 1).padStart(2, "0")}</span>
+                <img class="parsed-favicon" src="${fav}" alt="" onerror="this.style.display='none'" />
+                <span class="parsed-url" title="${url}">${url}</span>
+              </div>
+              <button class="btn-remove-url" type="button" data-remove-index="${i}" title="Remove URL">✕</button>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    parsedListContainer.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-remove-index]");
+      if (!btn) return;
+      const idx = Number(btn.getAttribute("data-remove-index"));
+      if (!Number.isNaN(idx)) {
+        parsedUrls.splice(idx, 1);
+        urlTextarea.value = parsedUrls.join("\n");
+        updateParsedUrlsUI();
+      }
+    });
+
+    urlTextarea.addEventListener("input", updateParsedUrlsUI);
+    chkDedupe.addEventListener("change", updateParsedUrlsUI);
+    chkFullPage.addEventListener("change", updateParsedUrlsUI);
+
+    btnLoadSample10.addEventListener("click", () => {
+      urlTextarea.value = SAMPLE_10_URLS.join("\n");
+      updateParsedUrlsUI();
+    });
+
+    btnExtractText.addEventListener("click", () => {
+      const raw = urlTextarea.value;
+      const urlRegex =
+        /(?:https?:\/\/|www\.)[^\s"'<>)\]]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s"'<>)\]]*)?/gi;
+      const matches = raw.match(urlRegex) || [];
+      const cleaned = parseUrlsFromText(matches.join("\n"), chkDedupe.checked);
+      if (cleaned.length > 0) {
+        urlTextarea.value = cleaned.join("\n");
+        updateParsedUrlsUI();
+      }
+    });
+
+    fileImportInput.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      const existing = urlTextarea.value.trim();
+      urlTextarea.value = existing ? `${existing}\n${text}` : text;
+      updateParsedUrlsUI();
+      fileImportInput.value = "";
+    });
+
+    btnClearUrls.addEventListener("click", () => {
+      urlTextarea.value = "";
+      updateParsedUrlsUI();
+    });
+
+    // -------------------------------------------------------------------------
+    // Step Navigation
+    // -------------------------------------------------------------------------
+
+    function switchToStep(stepNumber) {
+      if (stepNumber === 1) {
+        tabStep1.classList.add("active");
+        tabStep2.classList.remove("active");
+        viewStep1.classList.remove("hidden");
+        viewStep2.classList.add("hidden");
+        btnBackToStep1.classList.add("hidden");
+        btnStopBatch.classList.add("hidden");
+        btnStartScreenshot.classList.remove("hidden");
+        updateParsedUrlsUI();
+      } else {
+        tabStep1.classList.remove("active");
+        tabStep2.classList.add("active");
+        viewStep1.classList.add("hidden");
+        viewStep2.classList.remove("hidden");
+        btnBackToStep1.classList.toggle("hidden", isCapturing);
+        btnStopBatch.classList.toggle("hidden", !isCapturing);
+        btnStartScreenshot.classList.toggle("hidden", isCapturing);
+      }
+    }
+
+    tabStep1.addEventListener("click", () => {
+      if (!isCapturing) switchToStep(1);
+    });
+    tabStep2.addEventListener("click", () => {
+      if (batchItems.length > 0 || isCapturing) switchToStep(2);
+    });
+    btnBackToStep1.addEventListener("click", () => {
+      if (!isCapturing) switchToStep(1);
+    });
+
+    // -------------------------------------------------------------------------
+    // Whole-Screen Image Processing & Seamless Vertical Tile Slicing
+    // -------------------------------------------------------------------------
+
+    const MAX_FIGMA_TILE_HEIGHT = 3600;
+
+    function loadImageElement(src, useCrossOrigin = false) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        if (useCrossOrigin) {
+          img.crossOrigin = "anonymous";
+        }
+        const timer = setTimeout(() => {
+          reject(new Error("Image decode timeout"));
+        }, 30000);
+
+        img.onload = () => {
+          clearTimeout(timer);
+          resolve(img);
+        };
+        img.onerror = () => {
+          clearTimeout(timer);
+          reject(new Error("Failed to decode screenshot image"));
+        };
+        img.src = src;
+      });
+    }
+
+    function canvasToUint8Array(canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error("Canvas toBlob failed"));
+          blob
+            .arrayBuffer()
+            .then((buf) => resolve(new Uint8Array(buf)))
+            .catch(reject);
+        }, "image/png");
+      });
+    }
+
+    /**
+     * Converts any loaded HTMLImageElement into seamless vertical PNG tiles
+     * preserving 100% of the whole website height (zero cropping), plus a
+     * scrollable full-height preview image for the UI.
+     */
+    async function imageToFigmaTiles(img, targetWidth, targetHeight, fullPage) {
+      const srcW = img.naturalWidth || img.width || targetWidth;
+      const srcH = img.naturalHeight || img.height || targetHeight;
+
+      const finalWidth = Math.min(4000, Math.round(targetWidth));
+      const scale = finalWidth / srcW;
+
+      // When fullPage (Whole Screen) is enabled, preserve the entire source height!
+      const usableSrcH = fullPage
+        ? srcH
+        : Math.min(srcH, Math.round(targetHeight / scale));
+      const finalHeight = Math.max(100, Math.round(usableSrcH * scale));
+
+      // Create a full-height preview image for the plugin UI (scrollable in card & modal)
+      const previewW = Math.min(640, finalWidth);
+      const previewScale = previewW / srcW;
+      const previewH = Math.min(8000, Math.max(120, Math.round(usableSrcH * previewScale)));
+      const previewCanvas = document.createElement("canvas");
+      previewCanvas.width = previewW;
+      previewCanvas.height = previewH;
+      const pCtx = previewCanvas.getContext("2d");
+      pCtx.fillStyle = "#ffffff";
+      pCtx.fillRect(0, 0, previewW, previewH);
+      pCtx.drawImage(
+        img,
+        0,
+        0,
+        srcW,
+        Math.min(usableSrcH, Math.round(previewH / previewScale)),
+        0,
+        0,
+        previewW,
+        previewH
+      );
+      const thumbDataUrl = previewCanvas.toDataURL("image/jpeg", 0.82);
+
+      // Slice along source height so 100% of the whole screen is captured with zero seams
+      const maxSrcChunkH = Math.max(100, Math.floor(MAX_FIGMA_TILE_HEIGHT / scale));
+      const tiles = [];
+      let srcY = 0;
+      let destYOffset = 0;
+
+      while (srcY < usableSrcH) {
+        const srcChunkH = Math.min(maxSrcChunkH, usableSrcH - srcY);
+        const tileHeight = Math.max(
+          1,
+          Math.min(MAX_FIGMA_TILE_HEIGHT, Math.round(srcChunkH * scale))
+        );
+
+        const tileCanvas = document.createElement("canvas");
+        tileCanvas.width = finalWidth;
+        tileCanvas.height = tileHeight;
+        const ctx = tileCanvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, finalWidth, tileHeight);
+
+        ctx.drawImage(
+          img,
+          0,
+          srcY,
+          srcW,
+          srcChunkH,
+          0,
+          0,
+          finalWidth,
+          tileHeight
+        );
+
+        const bytes = await canvasToUint8Array(tileCanvas);
+        tiles.push({
+          bytes,
+          width: finalWidth,
+          height: tileHeight,
+          yOffset: destYOffset
+        });
+
+        srcY += srcChunkH;
+        destYOffset += tileHeight;
+      }
+
+      return {
+        width: finalWidth,
+        height: destYOffset || finalHeight,
+        tiles,
+        thumbDataUrl
+      };
+    }
+
+    // -------------------------------------------------------------------------
+    // Multi-Engine Whole-Screen Screenshot Fetchers
+    // -------------------------------------------------------------------------
+
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 40000) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        return res;
+      } finally {
+        clearTimeout(id);
+      }
+    }
+
+    /**
+     * Engine 1: Microlink API (Full-Page Whole-Screen Screenshot)
+     */
+    async function captureViaMicrolink(url, { width, height, fullPage }) {
+      const params = new URLSearchParams({
+        url,
+        screenshot: "true",
+        meta: "false",
+        "viewport.width": String(width),
+        "viewport.height": String(height),
+        "viewport.deviceScaleFactor": "1"
+      });
+      if (fullPage) {
+        params.set("screenshot.fullPage", "true");
+        params.set("fullPage", "true");
+        params.set("waitForTimeout", "1200");
+      }
+
+      const apiUrl = `https://api.microlink.io/?${params.toString()}`;
+      const res = await fetchWithTimeout(apiUrl, {}, 40000);
+      if (!res.ok) {
+        throw new Error(`Microlink HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const shotUrl =
+        data && data.data && data.data.screenshot && data.data.screenshot.url;
+      if (!shotUrl) {
+        throw new Error("Microlink returned no screenshot URL");
+      }
+
+      const imgRes = await fetchWithTimeout(shotUrl, {}, 35000);
+      if (!imgRes.ok) {
+        throw new Error(`Screenshot download HTTP ${imgRes.status}`);
+      }
+      const blob = await imgRes.blob();
+      const objUrl = URL.createObjectURL(blob);
+      try {
+        const img = await loadImageElement(objUrl, false);
+        const processed = await imageToFigmaTiles(img, width, height, fullPage);
+        return { ...processed, engineUsed: "Microlink Full-Page" };
+      } finally {
+        URL.revokeObjectURL(objUrl);
+      }
+    }
+
+    /**
+     * Engine 2: Google PageSpeed Insights / Lighthouse API
+     * Always extracts `fullPageScreenshot.screenshot.data` for full whole-screen height.
+     */
+    async function captureViaPageSpeed(url, { width, height, fullPage }) {
+      const strategy = width <= 500 ? "mobile" : "desktop";
+      const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(
+        url
+      )}&strategy=${strategy}&category=performance`;
+
+      const res = await fetchWithTimeout(apiUrl, {}, 45000);
+      if (!res.ok) {
+        throw new Error(`PageSpeed HTTP ${res.status}`);
+      }
+      const json = await res.json();
+      const lr = json && json.lighthouseResult;
+      const fullPageData =
+        lr &&
+        lr.fullPageScreenshot &&
+        lr.fullPageScreenshot.screenshot &&
+        lr.fullPageScreenshot.screenshot.data;
+      const viewportData =
+        lr &&
+        lr.audits &&
+        lr.audits["final-screenshot"] &&
+        lr.audits["final-screenshot"].details &&
+        lr.audits["final-screenshot"].details.data;
+
+      // Always prefer fullPageData so the screenshot is full-resolution and whole-screen
+      const dataUrl = fullPageData || viewportData;
+
+      if (!dataUrl) {
+        throw new Error("PageSpeed returned no screenshot data");
+      }
+
+      const img = await loadImageElement(dataUrl, false);
+      const processed = await imageToFigmaTiles(img, width, height, fullPage);
+      return { ...processed, engineUsed: "Google Lighthouse Full-Page" };
+    }
+
+    /**
+     * Engine 3: Thum.io Direct Image Stream (Full-Page)
+     */
+    async function captureViaThumIo(url, { width, height, fullPage }) {
+      const cropPart = fullPage ? "fullpage/" : `crop/${height}/`;
+      const thumUrl = `https://image.thum.io/get/width/${width}/${cropPart}noanimate/${url}`;
+      const img = await loadImageElement(thumUrl, true);
+      const processed = await imageToFigmaTiles(img, width, height, fullPage);
+      return { ...processed, engineUsed: "Thum.io" };
+    }
+
+    /**
+     * Engine 4: Local Companion Server (http://localhost:3456/screenshot)
+     */
+    async function captureViaLocalServer(url, { width, height, fullPage }) {
+      const params = new URLSearchParams({
+        url,
+        width: String(width),
+        height: String(height),
+        fullPage: String(Boolean(fullPage))
+      });
+      const res = await fetchWithTimeout(
+        `http://localhost:3456/screenshot?${params.toString()}`,
+        {},
+        45000
+      );
+      if (!res.ok) {
+        throw new Error(`Local server HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      try {
+        const img = await loadImageElement(objUrl, false);
+        const processed = await imageToFigmaTiles(img, width, height, fullPage);
+        return { ...processed, engineUsed: "Local Server Full-Page" };
+      } finally {
+        URL.revokeObjectURL(objUrl);
+      }
+    }
+
+    /**
+     * Master dispatcher with automatic multi-engine fallback
+     */
+    async function captureWebsiteScreenshot(url, options) {
+      const { engine } = options;
+
+      if (engine === "local") {
+        return await captureViaLocalServer(url, options);
+      }
+      if (engine === "microlink") {
+        return await captureViaMicrolink(url, options);
+      }
+      if (engine === "pagespeed") {
+        return await captureViaPageSpeed(url, options);
+      }
+
+      const errors = [];
+      const pipeline = [
+        { name: "Microlink", fn: () => captureViaMicrolink(url, options) },
+        { name: "PageSpeed", fn: () => captureViaPageSpeed(url, options) },
+        { name: "Thum.io", fn: () => captureViaThumIo(url, options) }
+      ];
+
+      for (const step of pipeline) {
+        try {
+          return await step.fn();
+        } catch (err) {
+          errors.push(`${step.name}: ${err.message || err}`);
+        }
+      }
+
+      throw new Error(errors.join(" | "));
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 2 UI Rendering & Batch Orchestration
+    // -------------------------------------------------------------------------
+
+    function renderCaptureQueue() {
+      const total = batchItems.length;
+      const doneCount = batchItems.filter((i) => i.status === "done").length;
+      const errorCount = batchItems.filter((i) => i.status === "error").length;
+      const activeCount = batchItems.filter((i) => i.status === "capturing").length;
+
+      const pct = total > 0 ? Math.round(((doneCount + errorCount) / total) * 100) : 0;
+      progressBarFill.style.width = `${pct}%`;
+
+      if (isCapturing) {
+        progressHeadline.textContent = `Capturing Whole Screen: ${doneCount} / ${total} Websites (${activeCount} active)...`;
+        progressSubtext.textContent = `Full-height screenshots are being placed onto your Figma canvas automatically`;
+      } else {
+        progressHeadline.textContent = `Completed: ${doneCount} of ${total} Whole-Screen Screenshots Placed in Figma`;
+        progressSubtext.textContent =
+          errorCount > 0
+            ? `${errorCount} failed — click 'Retry Failed' to recapture them.`
+            : `All ${doneCount} full-page website screenshots are arranged on your Figma canvas! Scroll any preview below or click to enlarge.`;
+      }
+
+      btnRetryFailed.classList.toggle("hidden", isCapturing || errorCount === 0);
+
+      captureQueueList.innerHTML = batchItems
+        .map((item) => {
+          const idxStr = String(item.index + 1).padStart(2, "0");
+          let statusBadge = "";
+          if (item.status === "queued") {
+            statusBadge = `<span class="status-pill queued">Queued</span>`;
+          } else if (item.status === "capturing") {
+            statusBadge = `<span class="status-pill capturing"><span class="spinner"></span> Capturing Full Page</span>`;
+          } else if (item.status === "done") {
+            statusBadge = `<span class="status-pill done">✓ In Figma</span>`;
+          } else if (item.status === "error") {
+            statusBadge = `<span class="status-pill error">✕ Failed</span>`;
+          }
+
+          const thumbContent = item.thumbUrl
+            ? `<img src="${item.thumbUrl}" alt="${item.hostname}" title="Click to view whole screen preview" data-preview-index="${item.index}" />`
+            : `<div class="thumb-placeholder"><span>#${idxStr} • Waiting...</span></div>`;
+
+          const metaText = item.error
+            ? `<span style="color:#f87171;">${item.error}</span>`
+            : item.engineUsed
+            ? `${item.engineUsed} • <strong>${item.dimensions || ""}</strong> (${item.tileCount || 1} tile${item.tileCount === 1 ? "" : "s"})`
+            : "Waiting in queue...";
+
+          return `
+            <div class="capture-item status-${item.status}">
+              <div class="capture-top-row">
+                <div class="capture-title-row">
+                  <span class="parsed-index">#${idxStr}</span>
+                  <span class="capture-host">${item.hostname}</span>
+                </div>
+                ${statusBadge}
+              </div>
+
+              <div class="thumb-box" data-preview-index="${item.index}">
+                ${thumbContent}
+              </div>
+
+              <div class="capture-info">
+                <div class="capture-url" title="${item.url}">${item.url}</div>
+                <div class="capture-meta">
+                  <span>${metaText}</span>
+                </div>
+              </div>
+
+              <div class="capture-actions">
+                ${
+                  item.thumbUrl
+                    ? `<button class="btn-chip" type="button" data-preview-index="${item.index}" title="View whole screen screenshot in modal">🖼️ View Full</button>`
+                    : ""
+                }
+                ${
+                  item.nodeId
+                    ? `<button class="btn-chip" type="button" data-focus-node="${item.nodeId}" title="Zoom to frame in Figma">🔍 Zoom in Figma</button>`
+                    : ""
+                }
+                ${
+                  !isCapturing && item.status === "error"
+                    ? `<button class="btn-chip" type="button" data-retry-index="${item.index}">🔄 Retry</button>`
+                    : ""
+                }
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    captureQueueList.addEventListener("click", (e) => {
+      const previewTrigger = e.target.closest("[data-preview-index]");
+      if (previewTrigger && !e.target.closest("[data-focus-node]") && !e.target.closest("[data-retry-index]")) {
+        const idx = Number(previewTrigger.getAttribute("data-preview-index"));
+        const item = batchItems.find((i) => i.index === idx);
+        if (item && item.thumbUrl) {
+          previewModalTitle.textContent = `#${String(item.index + 1).padStart(2, "0")} — ${item.hostname} (${item.dimensions || "Whole Screen"})`;
+          previewModalImg.src = item.thumbUrl;
+          previewModal.classList.remove("hidden");
+        }
+        return;
+      }
+
+      const focusBtn = e.target.closest("[data-focus-node]");
+      if (focusBtn) {
+        const nodeId = focusBtn.getAttribute("data-focus-node");
+        parent.postMessage({ pluginMessage: { type: "FOCUS_NODE", nodeId } }, "*");
+        return;
+      }
+
+      const retryBtn = e.target.closest("[data-retry-index]");
+      if (retryBtn && !isCapturing) {
+        const idx = Number(retryBtn.getAttribute("data-retry-index"));
+        const item = batchItems.find((i) => i.index === idx);
+        if (item) {
+          runBatchCapture([item], false);
+        }
+      }
+    });
+
+    btnRetryFailed.addEventListener("click", () => {
+      if (isCapturing) return;
+      const failedItems = batchItems.filter((i) => i.status === "error");
+      if (failedItems.length > 0) {
+        runBatchCapture(failedItems, false);
+      }
+    });
+
+    btnStopBatch.addEventListener("click", () => {
+      stopRequested = true;
+      isCapturing = false;
+      switchToStep(2);
+      renderCaptureQueue();
+    });
+
+    function getCaptureOptions() {
+      const [wStr, hStr] = (selectViewport.value || "1440x900").split("x");
+      const width = Number(wStr) || 1440;
+      const height = Number(hStr) || 900;
+      const columns = Number(selectColumns.value) || 5;
+      const engine = selectEngine.value || "auto";
+      const concurrency = Number(selectConcurrency.value) || 4;
+      const fullPage = chkFullPage.checked;
+      const includeHeader = chkBrowserHeader.checked;
+
+      return {
+        width,
+        height,
+        columns,
+        engine,
+        concurrency,
+        fullPage,
+        includeHeader,
+        deviceLabel: `${width}×${fullPage ? "FullPage" : height}`
+      };
+    }
+
+    async function runBatchCapture(itemsToProcess, isNewBatch = true) {
+      const options = getCaptureOptions();
+      isCapturing = true;
+      stopRequested = false;
+
+      if (isNewBatch) {
+        currentBatchId = `batch_${Date.now()}`;
+        parent.postMessage(
+          {
+            pluginMessage: {
+              type: "START_BATCH",
+              batchId: currentBatchId,
+              total: batchItems.length,
+              options
+            }
+          },
+          "*"
+        );
+      }
+
+      for (const item of itemsToProcess) {
+        item.status = "queued";
+        item.error = null;
+      }
+
+      switchToStep(2);
+      renderCaptureQueue();
+
+      let cursor = 0;
+      const poolSize = Math.min(options.concurrency, itemsToProcess.length);
+
+      async function worker() {
+        while (cursor < itemsToProcess.length && !stopRequested) {
+          const item = itemsToProcess[cursor++];
+          item.status = "capturing";
+          item.error = null;
+          renderCaptureQueue();
+
+          try {
+            const result = await captureWebsiteScreenshot(item.url, options);
+            if (stopRequested) break;
+
+            item.thumbUrl = result.thumbDataUrl;
+            item.engineUsed = result.engineUsed;
+            item.dimensions = `${result.width}×${result.height}px`;
+            item.tileCount = result.tiles.length;
+
+            parent.postMessage(
+              {
+                pluginMessage: {
+                  type: "PLACE_SCREENSHOT",
+                  batchId: currentBatchId,
+                  index: item.index,
+                  total: batchItems.length,
+                  url: item.url,
+                  hostname: item.hostname,
+                  width: result.width,
+                  height: result.height,
+                  tiles: result.tiles,
+                  options
+                }
+              },
+              "*"
+            );
+
+            item.status = "done";
+          } catch (err) {
+            item.status = "error";
+            item.error =
+              err && err.message ? err.message : "Failed to capture screenshot";
+          }
+
+          renderCaptureQueue();
+        }
+      }
+
+      const workers = [];
+      for (let w = 0; w < poolSize; w++) {
+        workers.push(worker());
+      }
+      await Promise.all(workers);
+
+      isCapturing = false;
+      switchToStep(2);
+      renderCaptureQueue();
+
+      if (!stopRequested) {
+        parent.postMessage(
+          {
+            pluginMessage: {
+              type: "FINISH_BATCH",
+              batchId: currentBatchId
+            }
+          },
+          "*"
+        );
+      }
+    }
+
+    btnStartScreenshot.addEventListener("click", () => {
+      updateParsedUrlsUI();
+      if (parsedUrls.length === 0 || isCapturing) return;
+
+      batchItems = parsedUrls.map((url, index) => ({
+        index,
+        url,
+        hostname: getHostname(url),
+        status: "queued",
+        error: null,
+        thumbUrl: null,
+        nodeId: null,
+        engineUsed: null,
+        dimensions: null,
+        tileCount: 0
+      }));
+
+      runBatchCapture(batchItems, true);
+    });
+
+    window.onmessage = (event) => {
+      const msg = event.data && event.data.pluginMessage;
+      if (!msg) return;
+
+      if (msg.type === "SCREENSHOT_PLACED") {
+        const item = batchItems.find((i) => i.index === msg.index);
+        if (item) {
+          item.nodeId = msg.nodeId;
+          item.status = "done";
+          renderCaptureQueue();
+        }
+      } else if (msg.type === "PLACEMENT_ERROR") {
+        const item = batchItems.find((i) => i.index === msg.index);
+        if (item) {
+          item.status = "error";
+          item.error = msg.error || "Figma placement failed";
+          renderCaptureQueue();
+        }
+      }
+    };
+
+    updateParsedUrlsUI();
+  </script>
+</body>
+</html>
