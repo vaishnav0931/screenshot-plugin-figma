@@ -12,7 +12,10 @@
     "allowedDomains": [
       "*"
     ],
-    "reasoning": "Required to fetch website screenshots from screenshot APIs and target URLs."
+    "reasoning": "Required to fetch website screenshots from screenshot APIs and target URLs.",
+    "devAllowedDomains": [
+      "http://localhost:3456"
+    ]
   },
   "capabilities": []
 }

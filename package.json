@@ -4,7 +4,8 @@
   "description": "Figma plugin to bulk screenshot 10+ websites at a time and place them on the canvas in an organized grid.",
   "main": "code.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "sync-env": "node server.js --sync-env"
   },
   "keywords": [
     "figma",

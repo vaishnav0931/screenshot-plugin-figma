@@ -1,6 +1,9 @@
 // Bulk Website Screenshot — Figma Plugin Controller (code.js)
 // Runs inside the Figma plugin sandbox.
 
+// Automatically synced from .env when `node server.js` or `npm run sync-env` is run
+const ENV_GOOGLE_API_KEY = "AIzaSyCM9EHViIZh39QayXtAWzQ2TP-XwzcA0-A";
+
 figma.showUI(__html__, {
   width: 680,
   height: 780,
@@ -23,18 +26,6 @@ async function ensureFontsLoaded() {
       figma.loadFontAsync({ family: "Inter", style: "Semi Bold" })
     ]);
     fontsLoaded = true;
-    // Send saved Google Lighthouse API key (if any) to UI on startup
-    figma.clientStorage
-      .getAsync("google_lighthouse_api_key")
-      .then((savedKey) => {
-        if (savedKey) {
-          figma.ui.postMessage({
-            type: "LOAD_API_KEY",
-            apiKey: savedKey
-          });
-        }
-      })
-      .catch(() => {});
   } catch (err) {
     try {
       await figma.loadFontAsync({ family: "Inter", style: "Regular" });
@@ -46,18 +37,23 @@ async function ensureFontsLoaded() {
   }
 }
 
-// Load saved API key on startup
-figma.clientStorage
-  .getAsync("google_lighthouse_api_key")
-  .then((savedKey) => {
-    if (savedKey) {
-      figma.ui.postMessage({
-        type: "LOAD_API_KEY",
-        apiKey: savedKey
-      });
-    }
-  })
-  .catch(() => {});
+// The saved Google Lighthouse API key is sent when the UI announces it is ready (UI_READY),
+// because messages posted before the UI has attached its listener are silently dropped.
+function sendSavedApiKey() {
+  figma.clientStorage
+    .getAsync("google_lighthouse_api_key")
+    .then((savedKey) => {
+      const keyToUse = ENV_GOOGLE_API_KEY || (savedKey && String(savedKey).trim()) || "";
+      if (keyToUse) {
+        figma.ui.postMessage({ type: "LOAD_API_KEY", apiKey: keyToUse });
+      }
+    })
+    .catch(() => {
+      if (ENV_GOOGLE_API_KEY) {
+        figma.ui.postMessage({ type: "LOAD_API_KEY", apiKey: ENV_GOOGLE_API_KEY });
+      }
+    });
+}
 
 /**
  * Find a clean starting (x, y) position on the current page so new screenshot
@@ -167,7 +163,8 @@ async function createBrowserHeader(width, url, index, deviceLabel) {
   });
 
   const pillX = 92;
-  const pillWidth = Math.max(160, width - pillX - 160);
+  const badgeReserve = width >= 420 ? 150 : 16;
+  const pillWidth = Math.max(160, width - pillX - badgeReserve);
   const pillHeight = 30;
   const pill = figma.createFrame();
   pill.name = "Address Bar";
@@ -203,6 +200,7 @@ async function createBrowserHeader(width, url, index, deviceLabel) {
     badgeText.fontSize = 11;
     badgeText.characters = `#${index + 1} • ${deviceLabel || `${width}px`}`;
     badgeText.fills = [{ type: "SOLID", color: { r: 0.45, g: 0.48, b: 0.54 } }];
+    badgeText.textAutoResize = "WIDTH_AND_HEIGHT";
     badgeText.x = Math.max(pillX + pillWidth + 12, width - badgeText.width - 16);
     badgeText.y = Math.round((headerHeight - 14) / 2);
     header.appendChild(badgeText);
@@ -268,7 +266,12 @@ async function placeScreenshotOnCanvas(msg) {
 
   if (typeof figma.createFrame === "function") {
     const frame = figma.createFrame();
-    frame.name = `${String(index + 1).padStart(2, "0")} — ${hostname || url} (${frameWidth}×${actualImageHeight})`;
+    frame.name = `${String(index + 1).padStart(2, "0")} — ${hostname || url} (${frameWidth}×${actualImageHeight})${
+      msg.partial ? " [top only]" : ""
+    }`;
+    try {
+      frame.setPluginData("sourceUrl", String(url || ""));
+    } catch (_) {}
     frame.resize(frameWidth, frameHeight);
     frame.clipsContent = true;
     frame.cornerRadius = includeHeader ? 12 : 8;
@@ -288,15 +291,11 @@ async function placeScreenshotOnCanvas(msg) {
     ];
 
     if (includeHeader) {
-      const scoreSuffix =
-        typeof msg.lighthouseScore === "number"
-          ? ` • ⚡ ${msg.lighthouseScore}`
-          : "";
       const header = await createBrowserHeader(
         frameWidth,
         url,
         index,
-        `${frameWidth}×${actualImageHeight}${scoreSuffix}`
+        `${frameWidth}×${actualImageHeight}`
       );
       frame.appendChild(header);
     }
@@ -390,6 +389,11 @@ figma.ui.onmessage = async (msg) => {
 
   try {
     switch (msg.type) {
+      case "UI_READY": {
+        sendSavedApiKey();
+        break;
+      }
+
       case "RESIZE_UI": {
         const w = Math.max(480, Number(msg.width) || 680);
         const h = Math.max(500, Number(msg.height) || 780);

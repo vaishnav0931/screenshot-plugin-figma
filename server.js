@@ -1,57 +1,525 @@
 /**
- * Optional Local Companion Screenshot Server (http://localhost:3456)
+ * Zero-Dependency Local Whole-Screen Screenshot Server (http://localhost:3456)
  *
- * The Figma plugin works out-of-the-box using cloud APIs (Microlink, Google Lighthouse, Thum.io).
- * Run this server (`node server.js`) only if you want to screenshot `localhost` URLs
- * or use a local headless browser with full-page auto-scrolling and zero rate limits.
+ * Uses your installed Google Chrome or Microsoft Edge browser via Chrome DevTools Protocol (CDP)
+ * and Node.js v24 built-in WebSocket/fetch — NO `npm install` or API keys required!
+ * Zero quota limits, 100% full-page whole-screen screenshots.
  */
 
 const http = require("http");
+const { spawn } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 const { URL } = require("url");
 
-const PORT = process.env.PORT || 3456;
+const ENV_FILE_PATH = path.join(__dirname, ".env");
+const CODE_JS_PATH = path.join(__dirname, "code.js");
+const UI_HTML_PATH = path.join(__dirname, "ui.html");
 
-let browserInstance = null;
-
-async function getBrowser() {
-  if (browserInstance) return browserInstance;
+/**
+ * Zero-dependency .env parser & loader.
+ * Reads .env from disk, updates process.env, and syncs the key into code.js and ui.html
+ * so the Figma plugin has the API key immediately even when running without the local server.
+ */
+function loadDotEnv() {
+  const parsed = {};
   try {
-    const puppeteer = require("puppeteer");
-    browserInstance = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
-    return browserInstance;
+    if (fs.existsSync(ENV_FILE_PATH)) {
+      const raw = fs.readFileSync(ENV_FILE_PATH, "utf8");
+      for (const line of raw.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx === -1) continue;
+        const key = trimmed.slice(0, eqIdx).trim();
+        let val = trimmed.slice(eqIdx + 1).trim();
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
+          val = val.slice(1, -1);
+        } else {
+          // Strip inline comments for unquoted values
+          val = val.replace(/\s+#.*$/, "").trim();
+        }
+        parsed[key] = val;
+        if (val) {
+          process.env[key] = val;
+        }
+      }
+    }
   } catch (err) {
-    throw new Error(
-      "Puppeteer is not installed. Run `npm install puppeteer` to use the local companion server."
-    );
+    console.warn("Could not read .env file:", err.message);
   }
+
+  const googleApiKey =
+    parsed.GOOGLE_API_KEY ||
+    parsed.GOOGLE_LIGHTHOUSE_API_KEY ||
+    parsed.PAGESPEED_API_KEY ||
+    parsed.API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_LIGHTHOUSE_API_KEY ||
+    "";
+
+  const microlinkApiKey =
+    parsed.MICROLINK_API_KEY || process.env.MICROLINK_API_KEY || "";
+
+  // Sync into code.js and ui.html so Figma sandbox & UI get the .env key immediately
+  for (const targetPath of [CODE_JS_PATH, UI_HTML_PATH]) {
+    try {
+      if (fs.existsSync(targetPath)) {
+        const content = fs.readFileSync(targetPath, "utf8");
+        const updated = content.replace(
+          /const ENV_GOOGLE_API_KEY = "[^"]*";/,
+          `const ENV_GOOGLE_API_KEY = ${JSON.stringify(googleApiKey)};`
+        );
+        if (updated !== content) {
+          fs.writeFileSync(targetPath, updated, "utf8");
+        }
+      }
+    } catch (_) {}
+  }
+
+  return { googleApiKey, microlinkApiKey };
+}
+
+loadDotEnv();
+
+// Watch .env for changes while server is running so any edits auto-sync immediately
+try {
+  fs.watchFile(ENV_FILE_PATH, { interval: 1000 }, () => {
+    loadDotEnv();
+  });
+} catch (_) {}
+
+if (process.argv.includes("--sync-env")) {
+  const { googleApiKey } = loadDotEnv();
+  console.log(
+    googleApiKey
+      ? "✅ Synced API key from .env into Figma plugin (code.js)."
+      : "ℹ️ No API key set in .env yet. Edit .env and add GOOGLE_API_KEY=your_key"
+  );
+  process.exit(0);
+}
+
+const PORT = Number(process.env.PORT) || 3456;
+const CDP_PORT = Number(process.env.CDP_PORT) || 9333;
+
+// Chrome/Chromium hard limit for a single captured texture. Anything taller is truncated.
+const MAX_CAPTURE_HEIGHT = 16384;
+
+const BROWSER_PATHS = [
+  process.env.CHROME_PATH,
+  // Windows
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+  // macOS
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+  // Linux
+  "/usr/bin/google-chrome",
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser"
+].filter(Boolean);
+
+function findBrowserExecutable() {
+  for (const p of BROWSER_PATHS) {
+    if (fs.existsSync(p)) return p;
+  }
+  throw new Error(
+    "Could not find Google Chrome or Microsoft Edge. Set the CHROME_PATH environment variable to your browser executable."
+  );
+}
+
+let chromeProc = null;
+let browserReadyPromise = null;
+
+async function ensureChromeRunning() {
+  if (browserReadyPromise) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`);
+      if (res.ok) return;
+    } catch (_) {
+      browserReadyPromise = null;
+    }
+  }
+
+  browserReadyPromise = (async () => {
+    const exe = findBrowserExecutable();
+    const userDataDir = path.join(os.tmpdir(), `figma_shot_chrome_${CDP_PORT}`);
+
+    chromeProc = spawn(
+      exe,
+      [
+        "--headless=new",
+        `--remote-debugging-port=${CDP_PORT}`,
+        "--remote-allow-origins=*",
+        `--user-data-dir=${userDataDir}`,
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--hide-scrollbars",
+        "--mute-audio",
+        "--disable-blink-features=AutomationControlled",
+        "--lang=en-US",
+        ...(typeof process.getuid === "function" && process.getuid() === 0
+          ? ["--no-sandbox"]
+          : [])
+      ],
+      { stdio: "ignore", windowsHide: true }
+    );
+
+    chromeProc.on("exit", () => {
+      browserReadyPromise = null;
+    });
+
+    // Wait for CDP endpoint to respond
+    for (let i = 0; i < 40; i++) {
+      try {
+        const res = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`);
+        if (res.ok) return;
+      } catch (_) {}
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    throw new Error("Timed out waiting for headless Chrome DevTools Protocol.");
+  })();
+
+  return browserReadyPromise;
 }
 
 /**
- * Scroll down the entire page to trigger lazy-loaded images and animations
- * before taking a whole-screen (full-page) screenshot.
+ * Minimal CDP client over native WebSocket
  */
-async function autoScrollFullPage(page) {
-  await page.evaluate(async () => {
-    await new Promise((resolve) => {
-      let totalHeight = 0;
-      const distance = 600;
-      const maxScrollHeight = 25000;
-      const timer = setInterval(() => {
-        const scrollHeight = document.body ? document.body.scrollHeight : 0;
-        window.scrollBy(0, distance);
-        totalHeight += distance;
+function connectCDP(wsUrl) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(wsUrl);
+    let nextId = 1;
+    const pending = new Map();
+    const listeners = new Map();
 
-        if (totalHeight >= scrollHeight || totalHeight >= maxScrollHeight) {
-          clearInterval(timer);
-          window.scrollTo(0, 0);
-          setTimeout(resolve, 400);
+    const timer = setTimeout(() => {
+      try {
+        ws.close();
+      } catch (_) {}
+      reject(new Error("CDP WebSocket connect timeout"));
+    }, 10000);
+
+    ws.addEventListener("open", () => {
+      clearTimeout(timer);
+      resolve({
+        send(method, params = {}) {
+          return new Promise((res, rej) => {
+            const id = nextId++;
+            pending.set(id, { res, rej });
+            ws.send(JSON.stringify({ id, method, params }));
+          });
+        },
+        on(event, fn) {
+          if (!listeners.has(event)) listeners.set(event, []);
+          listeners.get(event).push(fn);
+        },
+        close() {
+          try {
+            ws.close();
+          } catch (_) {}
         }
-      }, 100);
+      });
+    });
+
+    ws.addEventListener("message", (ev) => {
+      try {
+        const msg = JSON.parse(typeof ev.data === "string" ? ev.data : ev.data.toString());
+        if (msg.id && pending.has(msg.id)) {
+          const { res, rej } = pending.get(msg.id);
+          pending.delete(msg.id);
+          if (msg.error) rej(new Error(msg.error.message || "CDP error"));
+          else res(msg.result);
+        } else if (msg.method && listeners.has(msg.method)) {
+          for (const fn of listeners.get(msg.method)) {
+            fn(msg.params);
+          }
+        }
+      } catch (_) {}
+    });
+
+    ws.addEventListener("error", (err) => {
+      clearTimeout(timer);
+      for (const { rej } of pending.values()) {
+        rej(new Error("CDP WebSocket error"));
+      }
+      pending.clear();
+      reject(err);
     });
   });
+}
+
+/**
+ * Capture a full-page or viewport PNG screenshot of a URL using Chrome CDP.
+ */
+async function captureWithChromeCDP(targetUrl, width, height, fullPage) {
+  await ensureChromeRunning();
+
+  // Create a new tab target
+  const newTabRes = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?about:blank`, {
+    method: "PUT"
+  });
+  if (!newTabRes.ok) {
+    throw new Error(`Failed to open Chrome tab: HTTP ${newTabRes.status}`);
+  }
+  const tabInfo = await newTabRes.json();
+  const cdp = await connectCDP(tabInfo.webSocketDebuggerUrl);
+
+  try {
+    await cdp.send("Page.enable");
+    await cdp.send("Runtime.enable");
+    // Make sure the tab is treated as visible/focused so lazy-loaders and observers fire
+    await cdp.send("Page.bringToFront").catch(() => {});
+    await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true }).catch(() => {});
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile: width <= 500
+    });
+
+    // Headless Chrome advertises "HeadlessChrome" in its user agent, which makes many sites
+    // (Cloudflare, OpenAI, GitHub...) serve a bot-check / blank page. Present as normal Chrome.
+    try {
+      const ver = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`)).json();
+      const ua = String(ver["User-Agent"] || "").replace("HeadlessChrome", "Chrome");
+      if (ua) {
+        await cdp.send("Network.enable");
+        await cdp.send("Network.setUserAgentOverride", {
+          userAgent: ua,
+          acceptLanguage: "en-US,en;q=0.9"
+        });
+      }
+    } catch (_) {}
+
+    // Track in-flight requests so we can wait for the page to actually finish rendering
+    let inflight = 0;
+    let lastNetActivity = Date.now();
+    cdp.on("Network.requestWillBeSent", () => {
+      inflight++;
+      lastNetActivity = Date.now();
+    });
+    const done = () => {
+      inflight = Math.max(0, inflight - 1);
+      lastNetActivity = Date.now();
+    };
+    cdp.on("Network.loadingFinished", done);
+    cdp.on("Network.loadingFailed", done);
+
+    // Navigate and wait for load event (with timeout fallback)
+    const loadPromise = new Promise((resolve) => {
+      const t = setTimeout(resolve, 18000);
+      cdp.on("Page.loadEventFired", () => {
+        clearTimeout(t);
+        setTimeout(resolve, 1000);
+      });
+    });
+
+    await cdp.send("Page.navigate", { url: targetUrl });
+    await loadPromise;
+
+    // Wait for the network to go quiet (SPAs like openai.com / github.com render after "load"),
+    // but never longer than ~10s so one slow tracker can't hang a capture.
+    const idleDeadline = Date.now() + 10000;
+    while (Date.now() < idleDeadline) {
+      if (inflight <= 2 && Date.now() - lastNetActivity > 900) break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    // Let web fonts finish so text isn't blank/fallback in the shot
+    await cdp.send("Runtime.evaluate", {
+      awaitPromise: true,
+      expression: "document.fonts && document.fonts.ready ? document.fonts.ready.then(() => true) : true"
+    }).catch(() => {});
+
+    let captureHeight = height;
+    let pageHeight = height;
+    let truncated = false;
+
+    if (fullPage) {
+      // 1) Scroll down in steps so lazy-loaded images / IntersectionObserver content renders.
+      //    The page height is re-measured every step because it often grows while scrolling.
+      await cdp.send("Runtime.evaluate", {
+        awaitPromise: true,
+        returnByValue: true,
+        expression: `
+          (async () => {
+            const step = Math.max(250, Math.round(window.innerHeight * 0.5));
+            const maxScroll = ${MAX_CAPTURE_HEIGHT};
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+            // Wait for a real rendered frame (observers / lazy-loaders run on frames), with a fallback
+            const nextFrame = () =>
+              Promise.race([
+                new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+                sleep(400)
+              ]);
+            const docHeight = () => Math.max(
+              document.body ? document.body.scrollHeight : 0,
+              document.documentElement ? document.documentElement.scrollHeight : 0
+            );
+
+            let y = 0;
+            let lastHeight = docHeight();
+            let stable = 0;
+            while (y < maxScroll) {
+              window.scrollTo(0, y);
+              await nextFrame();
+              await sleep(160);
+              const h = docHeight();
+              if (h > lastHeight) { lastHeight = h; stable = 0; }
+              y += step;
+              if (y >= lastHeight) {
+                // Reached the bottom: pause so late lazy content can extend the page, then re-check
+                await sleep(500);
+                const h2 = docHeight();
+                if (h2 > lastHeight) { lastHeight = h2; stable = 0; continue; }
+                if (++stable >= 1) break;
+              }
+            }
+            window.scrollTo(0, 0);
+            await nextFrame();
+            await sleep(500);
+            return docHeight();
+          })()
+        `
+      });
+
+      // 2) Lock any "100vh" / viewport-dependent elements to their true pixel height at the
+      //    normal viewport BEFORE Page.captureScreenshot(captureBeyondViewport: true) runs.
+      //    Why: Chromium internally resizes the layout viewport to the full document height
+      //    during captureBeyondViewport, which causes 100vh hero sections (like Canva's hero
+      //    gradient) to stretch to 6,000+ px tall.
+      await cdp.send("Runtime.evaluate", {
+        expression: `
+          (() => {
+            window.__vhBaseHeights = new WeakMap();
+            const all = document.querySelectorAll("*");
+            for (let i = 0; i < all.length; i++) {
+              const el = all[i];
+              const tag = el.tagName;
+              if (tag === "HTML" || tag === "BODY" || tag === "SCRIPT" || tag === "STYLE") continue;
+              window.__vhBaseHeights.set(el, Math.round(el.getBoundingClientRect().height));
+            }
+          })()
+        `
+      }).catch(() => {});
+
+      // Probe with a taller viewport (+700px) to see which elements stretch with viewport height
+      await cdp.send("Emulation.setDeviceMetricsOverride", {
+        width,
+        height: height + 700,
+        deviceScaleFactor: 1,
+        mobile: width <= 500
+      }).catch(() => {});
+
+      // Walk the DOM bottom-up (deepest children first): any element whose height grew when the
+      // viewport height increased is using vh/dvh/svh or fixed viewport sizing — lock it to its
+      // original pixel height so its parent containers also return to their true height.
+      await cdp.send("Runtime.evaluate", {
+        expression: `
+          (() => {
+            if (!window.__vhBaseHeights) return;
+            const all = Array.from(document.querySelectorAll("*")).reverse();
+            for (const el of all) {
+              const tag = el.tagName;
+              if (tag === "HTML" || tag === "BODY" || tag === "SCRIPT" || tag === "STYLE") continue;
+              const origH = window.__vhBaseHeights.get(el);
+              if (typeof origH !== "number" || origH <= 0) continue;
+              const newH = Math.round(el.getBoundingClientRect().height);
+              if (newH - origH > 40) {
+                el.style.setProperty("height", origH + "px", "important");
+                el.style.setProperty("min-height", origH + "px", "important");
+                el.style.setProperty("max-height", origH + "px", "important");
+                const cs = window.getComputedStyle(el);
+                if (cs.position === "fixed" || cs.position === "sticky") {
+                  el.style.setProperty("bottom", "auto", "important");
+                }
+              }
+            }
+            document.documentElement.style.setProperty("height", "auto", "important");
+            if (document.body) {
+              document.body.style.setProperty("height", "auto", "important");
+            }
+          })()
+        `
+      }).catch(() => {});
+
+      // Restore original viewport and measure true document height
+      await cdp.send("Emulation.setDeviceMetricsOverride", {
+        width,
+        height,
+        deviceScaleFactor: 1,
+        mobile: width <= 500
+      }).catch(() => {});
+
+      const measuredDocHeight = await cdp.send("Runtime.evaluate", {
+        returnByValue: true,
+        expression: `Math.max(
+          document.body ? document.body.scrollHeight : 0,
+          document.documentElement ? document.documentElement.scrollHeight : 0,
+          document.body ? document.body.offsetHeight : 0,
+          document.documentElement ? document.documentElement.offsetHeight : 0
+        )`
+      }).catch(() => null);
+
+      const metrics = await cdp.send("Page.getLayoutMetrics");
+      const cssContent =
+        (metrics && (metrics.cssContentSize || metrics.contentSize)) || null;
+      const domH =
+        measuredDocHeight &&
+        measuredDocHeight.result &&
+        typeof measuredDocHeight.result.value === "number"
+          ? Math.ceil(measuredDocHeight.result.value)
+          : 0;
+      pageHeight = Math.max(
+        height,
+        domH || (cssContent ? Math.ceil(cssContent.height) : height)
+      );
+
+      if (pageHeight > MAX_CAPTURE_HEIGHT) {
+        pageHeight = MAX_CAPTURE_HEIGHT;
+        truncated = true;
+      }
+      captureHeight = Math.max(height, pageHeight);
+    }
+
+    const shot = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: true,
+      fromSurface: true,
+      clip: {
+        x: 0,
+        y: 0,
+        width,
+        height: captureHeight,
+        scale: 1
+      }
+    });
+
+    if (!shot || !shot.data) {
+      throw new Error("Chrome returned empty screenshot data");
+    }
+
+    return {
+      buffer: Buffer.from(shot.data, "base64"),
+      pageHeight: captureHeight,
+      truncated
+    };
+  } finally {
+    cdp.close();
+    fetch(`http://127.0.0.1:${CDP_PORT}/json/close/${tabInfo.id}`).catch(() => {});
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -67,16 +535,32 @@ const server = http.createServer(async (req, res) => {
 
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
 
-  if (parsedUrl.pathname === "/health") {
+  if (parsedUrl.pathname === "/health" || parsedUrl.pathname === "/env") {
+    const { googleApiKey, microlinkApiKey } = loadDotEnv();
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", port: PORT }));
+    res.end(
+      JSON.stringify({
+        status: "ok",
+        port: PORT,
+        engine: "Chrome CDP",
+        googleApiKey,
+        microlinkApiKey,
+        hasEnvKey: Boolean(googleApiKey)
+      })
+    );
     return;
   }
 
   if (parsedUrl.pathname === "/screenshot") {
     const targetUrl = parsedUrl.searchParams.get("url");
-    const width = Math.min(3840, Math.max(320, Number(parsedUrl.searchParams.get("width")) || 1440));
-    const height = Math.min(2160, Math.max(320, Number(parsedUrl.searchParams.get("height")) || 900));
+    const width = Math.min(
+      3840,
+      Math.max(320, Number(parsedUrl.searchParams.get("width")) || 1440)
+    );
+    const height = Math.min(
+      2160,
+      Math.max(320, Number(parsedUrl.searchParams.get("height")) || 900)
+    );
     const fullPage = parsedUrl.searchParams.get("fullPage") !== "false";
 
     if (!targetUrl) {
@@ -85,31 +569,24 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    let page = null;
     try {
-      const browser = await getBrowser();
-      page = await browser.newPage();
-      await page.setViewport({ width, height, deviceScaleFactor: 1 });
-      await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: 35000 });
-
-      if (fullPage) {
-        await autoScrollFullPage(page);
-      }
-
-      const buffer = await page.screenshot({ type: "png", fullPage });
-
+      const { buffer, pageHeight, truncated } = await captureWithChromeCDP(
+        targetUrl,
+        width,
+        height,
+        fullPage
+      );
       res.writeHead(200, {
         "Content-Type": "image/png",
-        "Content-Length": buffer.length
+        "Content-Length": buffer.length,
+        "X-Page-Height": String(pageHeight),
+        "X-Page-Truncated": String(truncated),
+        "Access-Control-Expose-Headers": "X-Page-Height, X-Page-Truncated"
       });
       res.end(buffer);
     } catch (err) {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: err.message || String(err) }));
-    } finally {
-      if (page) {
-        await page.close().catch(() => {});
-      }
     }
     return;
   }
@@ -119,5 +596,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 Local Whole-Screen Screenshot Server running at http://localhost:${PORT}`);
+  console.log(
+    `🚀 Local Chrome Whole-Screen Screenshot Server running at http://localhost:${PORT}`
+  );
 });
