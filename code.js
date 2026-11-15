@@ -1,9 +1,6 @@
 // Bulk Website Screenshot — Figma Plugin Controller (code.js)
 // Runs inside the Figma plugin sandbox.
 
-// Automatically synced from .env when `node server.js` or `npm run sync-env` is run
-const ENV_GOOGLE_API_KEY = "AIzaSyCM9EHViIZh39QayXtAWzQ2TP-XwzcA0-A";
-
 figma.showUI(__html__, {
   width: 680,
   height: 780,
@@ -35,24 +32,6 @@ async function ensureFontsLoaded() {
       console.warn("Could not load Inter font:", e);
     }
   }
-}
-
-// The saved Google Lighthouse API key is sent when the UI announces it is ready (UI_READY),
-// because messages posted before the UI has attached its listener are silently dropped.
-function sendSavedApiKey() {
-  figma.clientStorage
-    .getAsync("google_lighthouse_api_key")
-    .then((savedKey) => {
-      const keyToUse = ENV_GOOGLE_API_KEY || (savedKey && String(savedKey).trim()) || "";
-      if (keyToUse) {
-        figma.ui.postMessage({ type: "LOAD_API_KEY", apiKey: keyToUse });
-      }
-    })
-    .catch(() => {
-      if (ENV_GOOGLE_API_KEY) {
-        figma.ui.postMessage({ type: "LOAD_API_KEY", apiKey: ENV_GOOGLE_API_KEY });
-      }
-    });
 }
 
 /**
@@ -389,23 +368,10 @@ figma.ui.onmessage = async (msg) => {
 
   try {
     switch (msg.type) {
-      case "UI_READY": {
-        sendSavedApiKey();
-        break;
-      }
-
       case "RESIZE_UI": {
         const w = Math.max(480, Number(msg.width) || 680);
         const h = Math.max(500, Number(msg.height) || 780);
         figma.ui.resize(w, h);
-        break;
-      }
-
-      case "SAVE_API_KEY": {
-        await figma.clientStorage.setAsync(
-          "google_lighthouse_api_key",
-          String(msg.apiKey || "").trim()
-        );
         break;
       }
 

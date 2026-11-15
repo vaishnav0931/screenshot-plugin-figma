@@ -14,94 +14,21 @@ const os = require("os");
 const { URL } = require("url");
 
 const ENV_FILE_PATH = path.join(__dirname, ".env");
-const CODE_JS_PATH = path.join(__dirname, "code.js");
-const UI_HTML_PATH = path.join(__dirname, "ui.html");
 
-/**
- * Zero-dependency .env parser & loader.
- * Reads .env from disk, updates process.env, and syncs the key into code.js and ui.html
- * so the Figma plugin has the API key immediately even when running without the local server.
- */
-function loadDotEnv() {
-  const parsed = {};
-  try {
-    if (fs.existsSync(ENV_FILE_PATH)) {
-      const raw = fs.readFileSync(ENV_FILE_PATH, "utf8");
-      for (const line of raw.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        const eqIdx = trimmed.indexOf("=");
-        if (eqIdx === -1) continue;
-        const key = trimmed.slice(0, eqIdx).trim();
-        let val = trimmed.slice(eqIdx + 1).trim();
-        if (
-          (val.startsWith('"') && val.endsWith('"')) ||
-          (val.startsWith("'") && val.endsWith("'"))
-        ) {
-          val = val.slice(1, -1);
-        } else {
-          // Strip inline comments for unquoted values
-          val = val.replace(/\s+#.*$/, "").trim();
-        }
-        parsed[key] = val;
-        if (val) {
-          process.env[key] = val;
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Could not read .env file:", err.message);
-  }
-
-  const googleApiKey =
-    parsed.GOOGLE_API_KEY ||
-    parsed.GOOGLE_LIGHTHOUSE_API_KEY ||
-    parsed.PAGESPEED_API_KEY ||
-    parsed.API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.GOOGLE_LIGHTHOUSE_API_KEY ||
-    "";
-
-  const microlinkApiKey =
-    parsed.MICROLINK_API_KEY || process.env.MICROLINK_API_KEY || "";
-
-  // Sync into code.js and ui.html so Figma sandbox & UI get the .env key immediately
-  for (const targetPath of [CODE_JS_PATH, UI_HTML_PATH]) {
-    try {
-      if (fs.existsSync(targetPath)) {
-        const content = fs.readFileSync(targetPath, "utf8");
-        const updated = content.replace(
-          /const ENV_GOOGLE_API_KEY = "[^"]*";/,
-          `const ENV_GOOGLE_API_KEY = ${JSON.stringify(googleApiKey)};`
-        );
-        if (updated !== content) {
-          fs.writeFileSync(targetPath, updated, "utf8");
-        }
-      }
-    } catch (_) {}
-  }
-
-  return { googleApiKey, microlinkApiKey };
-}
-
-loadDotEnv();
-
-// Watch .env for changes while server is running so any edits auto-sync immediately
+// Optional .env for server settings only (PORT, CDP_PORT, CHROME_PATH). No API keys needed.
 try {
-  fs.watchFile(ENV_FILE_PATH, { interval: 1000 }, () => {
-    loadDotEnv();
-  });
+  if (fs.existsSync(ENV_FILE_PATH)) {
+    for (const line of fs.readFileSync(ENV_FILE_PATH, "utf8").split(/\r?\n/)) {
+      const t = line.trim();
+      if (!t || t.startsWith("#")) continue;
+      const i = t.indexOf("=");
+      if (i === -1) continue;
+      const key = t.slice(0, i).trim();
+      let val = t.slice(i + 1).trim().replace(/^["']|["']$/g, "");
+      if (val && !process.env[key]) process.env[key] = val;
+    }
+  }
 } catch (_) {}
-
-if (process.argv.includes("--sync-env")) {
-  const { googleApiKey } = loadDotEnv();
-  console.log(
-    googleApiKey
-      ? "✅ Synced API key from .env into Figma plugin (code.js)."
-      : "ℹ️ No API key set in .env yet. Edit .env and add GOOGLE_API_KEY=your_key"
-  );
-  process.exit(0);
-}
 
 const PORT = Number(process.env.PORT) || 3456;
 const CDP_PORT = Number(process.env.CDP_PORT) || 9333;
@@ -535,19 +462,9 @@ const server = http.createServer(async (req, res) => {
 
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
 
-  if (parsedUrl.pathname === "/health" || parsedUrl.pathname === "/env") {
-    const { googleApiKey, microlinkApiKey } = loadDotEnv();
+  if (parsedUrl.pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        status: "ok",
-        port: PORT,
-        engine: "Chrome CDP",
-        googleApiKey,
-        microlinkApiKey,
-        hasEnvKey: Boolean(googleApiKey)
-      })
-    );
+    res.end(JSON.stringify({ status: "ok", port: PORT, engine: "Chrome CDP" }));
     return;
   }
 

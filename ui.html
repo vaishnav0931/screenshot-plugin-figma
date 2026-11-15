@@ -854,8 +854,7 @@
         <div class="field">
           <label for="selectEngine">Screenshot Engine</label>
           <select id="selectEngine">
-            <option value="auto" selected>Google Lighthouse + Auto Fallback (Recommended)</option>
-            <option value="pagespeed">Google Lighthouse API (With Quota Fallback)</option>
+            <option value="auto" selected>Auto — Local Chrome first, cloud fallback (Recommended)</option>
             <option value="microlink">Microlink Cloud (Full-Page)</option>
             <option value="local">Local Chrome Server (localhost:3456 • Unlimited)</option>
           </select>
@@ -866,34 +865,13 @@
           <label for="selectConcurrency">Parallel Speed</label>
           <select id="selectConcurrency">
             <option value="2">2 at a time (Safest for Public Quota)</option>
-            <option value="3" selected>3 at a time (Recommended for Lighthouse)</option>
+            <option value="3" selected>3 at a time (Recommended)</option>
             <option value="4">4 at a time (Fast)</option>
-            <option value="6">6 at a time (With API Key)</option>
+            <option value="6">6 at a time (Fastest)</option>
           </select>
         </div>
       </div>
 
-      <div class="field" style="margin-top: 2px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <label for="inputGoogleApiKey">
-            Google Lighthouse (PageSpeed Insights) API Key <span style="color: var(--text-muted); font-weight: 400;">(Recommended — or set in <code>.env</code>)</span>
-          </label>
-          <label class="btn-chip" title="Load API key directly from your .env file" style="cursor: pointer; flex-shrink: 0;">
-            📂 Load .env
-            <input id="envFileInput" type="file" accept=".env,text/plain" style="display: none;" />
-          </label>
-        </div>
-        <input
-          id="inputGoogleApiKey"
-          type="password"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="AIzaSy... (Paste here, or add GOOGLE_API_KEY=... in .env)"
-        />
-        <small id="apiKeyHelperText" style="color: var(--text-muted); display:block; margin-top:4px;">
-          Add <code>GOOGLE_API_KEY=your_key</code> to the <code>.env</code> file in the plugin folder (auto-loaded when server runs, or click <strong>Load .env</strong>).
-        </small>
-      </div>
     </section>
   </main>
 
@@ -951,9 +929,6 @@
     // Bulk Website Screenshot — Whole-Screen UI & Capture Pipeline
     // =========================================================================
 
-    // Automatically synced from .env when `node server.js` or `npm run sync-env` runs
-    const ENV_GOOGLE_API_KEY = "AIzaSyCM9EHViIZh39QayXtAWzQ2TP-XwzcA0-A";
-
     const SAMPLE_10_URLS = [
       "https://stripe.com",
       "https://linear.app",
@@ -989,7 +964,6 @@
     const selectColumns = document.getElementById("selectColumns");
     const selectEngine = document.getElementById("selectEngine");
     const selectConcurrency = document.getElementById("selectConcurrency");
-    const inputGoogleApiKey = document.getElementById("inputGoogleApiKey");
     const chkFullPage = document.getElementById("chkFullPage");
     const chkBrowserHeader = document.getElementById("chkBrowserHeader");
 
@@ -1552,20 +1526,6 @@
       try {
         const res = await fetchWithTimeout("http://localhost:3456/health", {}, 2500);
         localServerUp = res.ok;
-        if (res.ok) {
-          const data = await res.json().catch(() => null);
-          if (data && data.googleApiKey && inputGoogleApiKey && !inputGoogleApiKey.value.trim()) {
-            inputGoogleApiKey.value = data.googleApiKey;
-            parent.postMessage(
-              { pluginMessage: { type: "SAVE_API_KEY", apiKey: data.googleApiKey } },
-              "*"
-            );
-            const helper = document.getElementById("apiKeyHelperText");
-            if (helper) {
-              helper.innerHTML = `<span style="color:#34d399;font-weight:600;">✓ Loaded API key from .env automatically</span>`;
-            }
-          }
-        }
       } catch (_) {
         localServerUp = false;
       }
@@ -1584,9 +1544,6 @@
       }
       return localServerUp;
     }
-
-    // Track if Google's anonymous public quota is exhausted during the current session
-    let googleAnonymousQuotaExhausted = false;
 
     /**
      * Engine 1: Microlink API (Full-Page Whole-Screen Screenshot)
@@ -1630,160 +1587,6 @@
       } finally {
         URL.revokeObjectURL(objUrl);
       }
-    }
-
-    /**
-     * Engine 2: Google PageSpeed Screenshot API
-     * Endpoint: https://www.googleapis.com/pagespeedonline/v5/runPagespeed
-     * Extracts ONLY the full-page screenshot (no SEO/audit scores displayed).
-     */
-    function isPrivateOrLocalUrl(rawUrl) {
-      try {
-        const h = new URL(rawUrl).hostname.toLowerCase();
-        return (
-          h === "localhost" ||
-          h.endsWith(".local") ||
-          h === "::1" ||
-          /^127\./.test(h) ||
-          /^10\./.test(h) ||
-          /^192\.168\./.test(h) ||
-          /^172\.(1[6-9]|2\d|3[0-1])\./.test(h)
-        );
-      } catch (_) {
-        return false;
-      }
-    }
-
-    async function captureViaPageSpeed(url, { width, height, fullPage, googleApiKey }) {
-      const key = (googleApiKey || "").trim();
-      const hasCustomKey = Boolean(key);
-
-      if (isPrivateOrLocalUrl(url)) {
-        throw new Error("Google API can only reach public websites (use the Local Chrome engine for localhost)");
-      }
-      if (!hasCustomKey && googleAnonymousQuotaExhausted) {
-        throw new Error("Google anonymous daily quota exceeded — add a free API key in .env");
-      }
-
-      const strategy = width <= 500 ? "mobile" : "desktop";
-      const params = new URLSearchParams({ url, strategy, category: "performance" });
-      if (hasCustomKey) params.set("key", key);
-
-      const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params.toString()}`;
-
-      let lastErr = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const res = await fetchWithTimeout(apiUrl, {}, 90000);
-
-          if (!res.ok) {
-            const errJson = await res.json().catch(() => null);
-            const errMsg =
-              (errJson && errJson.error && errJson.error.message) ||
-              `Google Lighthouse HTTP ${res.status}`;
-
-            // Bad / disabled key — retrying can't help, tell the user exactly what's wrong
-            if (res.status === 400 && /api key|key not valid/i.test(errMsg)) {
-              const e = new Error("Google API key is invalid — check the key in Settings");
-              e.fatal = true;
-              throw e;
-            }
-            if (res.status === 403) {
-              const e = new Error(
-                "Google API key rejected (403) — enable “PageSpeed Insights API” for this key's Google Cloud project"
-              );
-              e.fatal = true;
-              throw e;
-            }
-
-            // 429: separate per-minute throttling (retry) from daily exhaustion (give up)
-            if (res.status === 429 || /quota exceeded/i.test(errMsg)) {
-              const perDay = /per day|daily/i.test(errMsg);
-              if (perDay) {
-                if (!hasCustomKey) googleAnonymousQuotaExhausted = true;
-                const e = new Error(
-                  hasCustomKey
-                    ? "Google Lighthouse daily quota exceeded for your API key"
-                    : "Google Lighthouse anonymous daily quota exceeded — add a free API key"
-                );
-                e.fatal = true;
-                throw e;
-              }
-              if (attempt < 3) {
-                await new Promise((r) => setTimeout(r, 4000 * attempt + Math.floor(Math.random() * 1000)));
-                continue;
-              }
-              throw new Error("Google Lighthouse rate limit hit (too many requests per minute)");
-            }
-
-            if ((res.status === 500 || res.status === 503) && attempt < 3) {
-              await new Promise((r) => setTimeout(r, 2500 * attempt));
-              continue;
-            }
-            throw new Error(errMsg);
-          }
-
-          const json = await res.json();
-          const lr = json && json.lighthouseResult;
-          if (!lr) throw new Error("Google Lighthouse returned no result");
-
-          // Lighthouse reports page-load failures (DNS, blocked, 4xx/5xx) here
-          if (lr.runtimeError && lr.runtimeError.code && lr.runtimeError.code !== "NO_ERROR") {
-            const e = new Error(
-              `Lighthouse could not load the page: ${lr.runtimeError.message || lr.runtimeError.code}`
-            );
-            e.fatal = true;
-            throw e;
-          }
-
-          const fullPageShot =
-            (lr.fullPageScreenshot &&
-              lr.fullPageScreenshot.screenshot &&
-              lr.fullPageScreenshot.screenshot.data) ||
-            (lr.audits &&
-              lr.audits["full-page-screenshot"] &&
-              lr.audits["full-page-screenshot"].details &&
-              lr.audits["full-page-screenshot"].details.screenshot &&
-              lr.audits["full-page-screenshot"].details.screenshot.data) ||
-            null;
-
-          const viewportShot =
-            (lr.audits &&
-              lr.audits["final-screenshot"] &&
-              lr.audits["final-screenshot"].details &&
-              lr.audits["final-screenshot"].details.data) ||
-            null;
-
-          // Whole Screen ON  -> only a real full-page image is acceptable
-          // Whole Screen OFF -> viewport shot is fine (full-page is also fine, it is cropped later)
-          const dataUrl = fullPage ? fullPageShot : viewportShot || fullPageShot;
-          if (!dataUrl) {
-            throw new Error(
-              fullPage
-                ? "Google Lighthouse returned no full-page screenshot for this site"
-                : "Google Lighthouse returned no screenshot data"
-            );
-          }
-
-          const img = await loadImageElement(dataUrl, false);
-          const processed = await imageToFigmaTiles(img, width, height, fullPage);
-          return {
-            ...processed,
-            engineUsed: "Google Cloud Screenshot"
-          };
-        } catch (err) {
-          lastErr = err;
-          if (err && err.fatal) break;
-          // Network/timeout errors: one more try, then fall through to the next engine
-          if (attempt < 3 && !/no full-page|no screenshot|no result/i.test(err.message || "")) {
-            await new Promise((r) => setTimeout(r, 1500));
-            continue;
-          }
-          break;
-        }
-      }
-
-      throw lastErr || new Error("Google Lighthouse capture failed");
     }
 
     /**
@@ -1831,9 +1634,8 @@
     }
 
     /**
-     * Master dispatcher — Tries Google Lighthouse API first, and automatically
-     * falls back to Local Chrome Server -> Microlink Full-Page -> Thum.io
-     * whenever Google's public anonymous quota is exceeded!
+     * Master dispatcher — Local Chrome Server first (whole page, unlimited, no API key),
+     * then falls back to Microlink Full-Page -> Thum.io (top of page only).
      */
     async function captureWebsiteScreenshot(url, options) {
       const { engine } = options;
@@ -1849,24 +1651,14 @@
         }
       }
 
-      // For "pagespeed" or "auto": try Google Lighthouse first, then seamlessly fall back
-      // if Google's anonymous daily quota is exceeded.
       const errors = [];
-      const lighthouseStep = {
-        name: "Google Lighthouse",
-        fn: () => captureViaPageSpeed(url, options)
-      };
-      const localStep = {
-        name: "Local Chrome",
-        fn: () => captureViaLocalServer(url, options)
-      };
       const pipeline = [];
-      // Always prefer Local Chrome Server when running: it scrolls lazy content and locks 100vh
-      // elements so hero sections never stretch to the full page height!
       if (localServerUp) {
-        pipeline.push(localStep);
+        pipeline.push({
+          name: "Local Chrome",
+          fn: () => captureViaLocalServer(url, options)
+        });
       }
-      pipeline.push(lighthouseStep);
       pipeline.push({
         name: "Microlink Full-Page",
         fn: () => captureViaMicrolink(url, options)
@@ -2033,92 +1825,15 @@
       renderCaptureQueue();
     });
 
-    const envFileInput = document.getElementById("envFileInput");
-
-    function parseDotEnvText(raw) {
-      const out = {};
-      for (const line of String(raw || "").split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        const eqIdx = trimmed.indexOf("=");
-        if (eqIdx === -1) continue;
-        const key = trimmed.slice(0, eqIdx).trim();
-        let val = trimmed.slice(eqIdx + 1).trim();
-        if (
-          (val.startsWith('"') && val.endsWith('"')) ||
-          (val.startsWith("'") && val.endsWith("'"))
-        ) {
-          val = val.slice(1, -1);
-        } else {
-          val = val.replace(/\s+#.*$/, "").trim();
-        }
-        out[key] = val;
-      }
-      return out;
-    }
-
-    if (envFileInput) {
-      envFileInput.addEventListener("change", async (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        const text = await file.text();
-        const envVars = parseDotEnvText(text);
-        const key =
-          envVars.GOOGLE_API_KEY ||
-          envVars.GOOGLE_LIGHTHOUSE_API_KEY ||
-          envVars.PAGESPEED_API_KEY ||
-          envVars.API_KEY ||
-          "";
-        const helper = document.getElementById("apiKeyHelperText");
-        if (key && inputGoogleApiKey) {
-          inputGoogleApiKey.value = key;
-          parent.postMessage({ pluginMessage: { type: "SAVE_API_KEY", apiKey: key } }, "*");
-          if (helper) {
-            helper.innerHTML = `<span style="color:#34d399;font-weight:600;">✓ Loaded API key from ${escapeHtml(file.name)} and saved to Figma!</span>`;
-          }
-        } else if (helper) {
-          helper.innerHTML = `<span style="color:#fbbf24;">⚠ No GOOGLE_API_KEY value found in ${escapeHtml(file.name)}. Add GOOGLE_API_KEY=your_key to .env</span>`;
-        }
-        envFileInput.value = "";
-      });
-    }
-
-    if (inputGoogleApiKey) {
-      if (ENV_GOOGLE_API_KEY && !inputGoogleApiKey.value.trim()) {
-        inputGoogleApiKey.value = ENV_GOOGLE_API_KEY;
-        const helper = document.getElementById("apiKeyHelperText");
-        if (helper) {
-          helper.innerHTML = `<span style="color:#34d399;font-weight:600;">✓ Loaded API key from .env automatically</span>`;
-        }
-      }
-      const saveApiKey = () => {
-        parent.postMessage(
-          {
-            pluginMessage: {
-              type: "SAVE_API_KEY",
-              apiKey: inputGoogleApiKey.value.trim()
-            }
-          },
-          "*"
-        );
-      };
-      inputGoogleApiKey.addEventListener("change", saveApiKey);
-      inputGoogleApiKey.addEventListener("blur", saveApiKey);
-    }
-
     function getCaptureOptions() {
       const [wStr, hStr] = (selectViewport.value || "1440x900").split("x");
       const width = Number(wStr) || 1440;
       const height = Number(hStr) || 900;
       const columns = Number(selectColumns.value) || 5;
-      const engine = selectEngine.value || "pagespeed";
+      const engine = selectEngine.value || "auto";
       const concurrency = Number(selectConcurrency.value) || 3;
       const fullPage = chkFullPage.checked;
       const includeHeader = chkBrowserHeader.checked;
-      const googleApiKey =
-        (inputGoogleApiKey && inputGoogleApiKey.value.trim()) ||
-        ENV_GOOGLE_API_KEY ||
-        "";
 
       return {
         width,
@@ -2128,7 +1843,6 @@
         concurrency,
         fullPage,
         includeHeader,
-        googleApiKey,
         deviceLabel: `${width}×${fullPage ? "FullPage" : height}`
       };
     }
@@ -2139,18 +1853,13 @@
       stopRequested = false;
 
       await checkLocalServer();
-      if (
-        options.fullPage &&
-        options.engine !== "microlink" &&
-        !localServerUp &&
-        !options.googleApiKey
-      ) {
+      if (options.fullPage && options.engine !== "microlink" && !localServerUp) {
         parent.postMessage(
           {
             pluginMessage: {
               type: "NOTIFY",
               message:
-                "⚠ Local Chrome server isn't running and no Google API key is set — pages may only capture the top. Run start-server.bat or add a key.",
+                "⚠ Local Chrome server isn't running — pages may only capture the top. Run start-server.bat for full-page screenshots.",
               error: true
             }
           },
@@ -2284,9 +1993,7 @@
       const msg = event.data && event.data.pluginMessage;
       if (!msg) return;
 
-      if (msg.type === "LOAD_API_KEY" && inputGoogleApiKey && msg.apiKey) {
-        inputGoogleApiKey.value = msg.apiKey;
-      } else if (msg.type === "SCREENSHOT_PLACED") {
+      if (msg.type === "SCREENSHOT_PLACED") {
         const item = batchItems.find((i) => i.index === msg.index);
         if (item) {
           item.nodeId = msg.nodeId;
@@ -2308,9 +2015,6 @@
     checkLocalServer();
     selectEngine.addEventListener("change", checkLocalServer);
 
-    // Tell the plugin controller the UI is listening so it can send the saved API key
-    // (sending it at startup raced with the UI loading and the key was often lost).
-    parent.postMessage({ pluginMessage: { type: "UI_READY" } }, "*");
   </script>
 </body>
 </html>
