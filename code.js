@@ -5,7 +5,7 @@ figma.showUI(__html__, {
   width: 680,
   height: 780,
   themeColors: true,
-  title: "Bulk Website Screenshot (Whole Screen)"
+  title: "Site screenshots"
 });
 
 // Store batches and created nodes in memory for instant lookup and dynamic grid reflow

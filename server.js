@@ -462,6 +462,18 @@ const server = http.createServer(async (req, res) => {
 
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
 
+  if (parsedUrl.pathname === "/" || parsedUrl.pathname === "/ui") {
+    try {
+      const html = fs.readFileSync(path.join(__dirname, "ui.html"));
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end("Could not read ui.html");
+    }
+    return;
+  }
+
   if (parsedUrl.pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "ok", port: PORT, engine: "Chrome CDP" }));
