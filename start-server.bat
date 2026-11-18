@@ -8,7 +8,7 @@ if errorlevel 1 (
   exit /b 1
 )
 echo Starting local full-page screenshot server on http://localhost:3456
-echo Keep this window open while you use the Figma plugin.
+echo Keep this window open while you use the Figma plugin or web app.
 echo.
-node server.js
+node server/index.js
 pause

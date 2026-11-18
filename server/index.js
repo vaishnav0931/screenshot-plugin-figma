@@ -13,7 +13,7 @@ const path = require("path");
 const os = require("os");
 const { URL } = require("url");
 
-const ENV_FILE_PATH = path.join(__dirname, ".env");
+const ENV_FILE_PATH = path.resolve(__dirname, "..", ".env");
 
 // Optional .env for server settings only (PORT, CDP_PORT, CHROME_PATH). No API keys needed.
 try {
@@ -464,12 +464,12 @@ const server = http.createServer(async (req, res) => {
 
   if (parsedUrl.pathname === "/" || parsedUrl.pathname === "/ui") {
     try {
-      const html = fs.readFileSync(path.join(__dirname, "ui.html"));
+      const html = fs.readFileSync(path.resolve(__dirname, "..", "plugin", "ui.html"));
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(html);
     } catch (err) {
       res.writeHead(500, { "Content-Type": "text/plain" });
-      res.end("Could not read ui.html");
+      res.end("Could not read plugin/ui.html");
     }
     return;
   }

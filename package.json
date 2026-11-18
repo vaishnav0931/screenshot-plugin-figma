@@ -1,19 +1,23 @@
 {
   "name": "bulk-website-screenshot-figma-plugin",
   "version": "1.0.0",
-  "description": "Figma plugin to bulk screenshot 10+ websites at a time and place them on the canvas in an organized grid.",
-  "main": "code.js",
+  "description": "Bulk full-page website screenshot Figma plugin and Figma-style Next.js artboard web app powered by local headless Chrome.",
+  "main": "plugin/code.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server/index.js",
+    "server": "node server/index.js",
+    "web": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:start": "npm --prefix web run start"
   },
   "keywords": [
     "figma",
     "figma-plugin",
+    "figjam",
     "screenshot",
+    "full-page-screenshot",
+    "nextjs",
     "bulk-screenshot"
   ],
-  "license": "MIT",
-  "optionalDependencies": {
-    "puppeteer": "^22.0.0"
-  }
+  "license": "MIT"
 }
