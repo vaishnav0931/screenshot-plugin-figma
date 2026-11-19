@@ -49,6 +49,22 @@ button { background: none; border: none; cursor: pointer; }
 .top-left, .top-right, .top-center { display: flex; align-items: center; gap: 4px; }
 .top-right { justify-content: flex-end; gap: 10px; }
 .crumbs { display: flex; gap: 6px; margin-left: 6px; font-size: 12px; }
+.top-link {
+  margin-left: 8px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 11px;
+}
+.top-link:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 
 .icon-btn, .tool, .zoom-btn {
   height: 32px;

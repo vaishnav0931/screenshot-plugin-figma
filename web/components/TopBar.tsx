@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { Tool } from "@/lib/types";
 import { IconDown, IconFit, IconFrame, IconHand, IconLogo, IconMove } from "./Icons";
 
@@ -31,6 +32,9 @@ export default function TopBar(p: Props) {
           <span className="muted">/</span>
           <span>Site screenshots</span>
         </div>
+        <Link href="/" className="top-link" title="Back to Component Library">
+          Components
+        </Link>
       </div>
 
       <div className="top-center">
