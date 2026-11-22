@@ -1,0 +1,3 @@
+[submodule ".agents/skills/security-audit"]
+	path = .agents/skills/security-audit
+	url = https://github.com/vaishnav0931/security-audit-skill.git
