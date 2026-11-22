@@ -54,6 +54,17 @@ export const IconDownload = (p: SVGProps<SVGSVGElement>) => (
     <path d="M8 2.5v8M4.8 7.6L8 10.8l3.2-3.2M3 13h10" />
   </svg>
 );
+export const IconCopy = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
+    <path d="M3.5 10.5H3a1 1 0 01-1-1V3a1 1 0 011-1h6.5a1 1 0 011 1v.5" />
+  </svg>
+);
+export const IconCheck = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M3 8.5l3.2 3.2L13 4.8" />
+  </svg>
+);
 export const IconTrash = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" />

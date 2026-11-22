@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Frame, Settings } from "@/lib/types";
 import { download } from "@/lib/utils";
-import { IconDownload, IconRefresh, IconTrash } from "./Icons";
+import { IconCheck, IconCopy, IconDownload, IconRefresh, IconTrash } from "./Icons";
 
 type Props = {
   frame: Frame | null;
@@ -14,6 +14,8 @@ type Props = {
   onRetry: (id: string) => void;
   onDelete: (id: string) => void;
   onRelayout: () => void;
+  onCopyToFigma?: (frame: Frame) => void;
+  copiedFrameId?: string | null;
 };
 
 function NumField({
@@ -51,10 +53,27 @@ export default function RightPanel({
   onMove,
   onRetry,
   onDelete,
-  onRelayout
+  onRelayout,
+  onCopyToFigma,
+  copiedFrameId
 }: Props) {
   const [tab, setTab] = useState<"design" | "export">("design");
   const done = frames.filter((f) => f.status === "done" && f.blob);
+
+  const copyFigmaButton = (variant: "primary" | "ghost") => {
+    const isCopied = Boolean(frame && copiedFrameId === frame.id);
+    return (
+      <button
+        className={variant === "primary" ? "primary" : "ghost block"}
+        disabled={!frame || !frame.blob}
+        onClick={() => frame && onCopyToFigma?.(frame)}
+        title="Copy PNG image to clipboard (Ctrl+C), then Ctrl+V in Figma"
+      >
+        {isCopied ? <IconCheck /> : <IconCopy />}
+        {isCopied ? "Copied — Ctrl+V in Figma" : "Copy to Figma"}
+      </button>
+    );
+  };
 
   const exportAll = () =>
     done.forEach((f, i) =>
@@ -140,6 +159,7 @@ export default function RightPanel({
                   <IconTrash /> Delete
                 </button>
               </div>
+              {copyFigmaButton("ghost")}
             </section>
           </>
         )}
@@ -200,8 +220,9 @@ export default function RightPanel({
               <span className="chip">1x</span>
               <span className="chip wide">PNG</span>
             </div>
+            {copyFigmaButton("primary")}
             <button
-              className="primary"
+              className="ghost block"
               disabled={!frame || !frame.blob}
               onClick={() => frame?.blob && download(frame.blob, `${frame.host}.png`)}
             >
@@ -210,7 +231,9 @@ export default function RightPanel({
             <button className="ghost block" disabled={done.length === 0} onClick={exportAll}>
               <IconDownload /> Export all ({done.length})
             </button>
-            <div className="hint flush">Exports the screenshot image without the browser header.</div>
+            <div className="hint flush">
+              Copy to Figma puts the PNG on your clipboard — press Ctrl+V inside Figma.
+            </div>
           </section>
         )}
       </div>

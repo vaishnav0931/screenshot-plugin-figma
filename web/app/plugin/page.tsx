@@ -6,6 +6,7 @@ import LeftPanel from "@/components/LeftPanel";
 import RightPanel from "@/components/RightPanel";
 import TopBar from "@/components/TopBar";
 import { captureUrl, checkServer } from "@/lib/capture";
+import { copyImageBlobToClipboard } from "@/lib/figma-export";
 import type { Frame, Settings, Tool, View } from "@/lib/types";
 import { HEADER_H, SAMPLE_URLS, clamp, hostOf, layoutFrames, parseUrls, uid } from "@/lib/utils";
 
@@ -29,6 +30,8 @@ export default function PluginPage() {
   const [tool, setTool] = useState<Tool>("move");
   const [server, setServer] = useState<"checking" | "up" | "down">("checking");
   const [running, setRunning] = useState(false);
+  const [copiedFrameId, setCopiedFrameId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -37,6 +40,8 @@ export default function PluginPage() {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const stopRef = useRef(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const urls = parseUrls(urlText);
   const selected = frames.find((f) => f.id === selectedId) ?? null;
@@ -201,11 +206,49 @@ export default function PluginPage() {
     setTimeout(() => textareaRef.current?.focus(), 0);
   }, []);
 
+  const showToast = useCallback((message: string, error = false) => {
+    setToast({ message, error });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  const copyFrameToFigma = useCallback(
+    async (frame: Frame) => {
+      if (!frame.blob) return;
+      const res = await copyImageBlobToClipboard(frame.blob);
+      if (res.ok) {
+        setCopiedFrameId(frame.id);
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = setTimeout(() => setCopiedFrameId(null), 2200);
+        showToast(`Copied ${frame.host} — press Ctrl+V in Figma`);
+      } else {
+        showToast(res.error || "Could not copy image to clipboard.", true);
+      }
+    },
+    [showToast]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target;
       if (t instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "c") {
+        if (window.getSelection()?.toString()) return;
+        const selectedFrame = framesRef.current.find((x) => x.id === selectedIdRef.current);
+        if (selectedFrame?.blob) {
+          e.preventDefault();
+          void copyFrameToFigma(selectedFrame);
+        }
+        return;
+      }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.shiftKey && e.code === "Digit1") {
         e.preventDefault();
@@ -223,7 +266,7 @@ export default function PluginPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [fitAll, fitSelection, focusCapture, deleteFrame]);
+  }, [fitAll, fitSelection, focusCapture, deleteFrame, copyFrameToFigma]);
 
   const selectFromLayers = (id: string) => {
     setSelectedId(id);
@@ -303,8 +346,15 @@ export default function PluginPage() {
           onRetry={captureOne}
           onDelete={deleteFrame}
           onRelayout={relayout}
+          onCopyToFigma={copyFrameToFigma}
+          copiedFrameId={copiedFrameId}
         />
       </div>
+      {toast && (
+        <div className={`canvas-toast ${toast.error ? "err" : ""}`} role="status">
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
