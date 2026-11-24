@@ -1,23 +1,34 @@
 {
-  "name": "bulk-website-screenshot-figma-plugin",
+  "name": "pixel-ui",
   "version": "1.0.0",
-  "description": "Bulk full-page website screenshot Figma plugin and Figma-style Next.js artboard web app powered by local headless Chrome.",
-  "main": "plugin/code.js",
+  "private": true,
+  "description": "Copy-paste React + TypeScript component library with interactive playgrounds and Figma export.",
   "scripts": {
-    "start": "node server/index.js",
-    "server": "node server/index.js",
-    "web": "npm --prefix web run dev",
-    "web:build": "npm --prefix web run build",
-    "web:start": "npm --prefix web run start"
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "web": "next dev -p 3000"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.0"
   },
   "keywords": [
-    "figma",
-    "figma-plugin",
-    "figjam",
-    "screenshot",
-    "full-page-screenshot",
+    "react",
+    "react-components",
+    "component-library",
+    "typescript",
     "nextjs",
-    "bulk-screenshot"
+    "figma",
+    "svg",
+    "webgl"
   ],
   "license": "MIT"
 }

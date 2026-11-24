@@ -1,8 +1,8 @@
 .env
 .env.local
 node_modules/
-web/node_modules/
-web/.next/
-web/tsconfig.tsbuildinfo
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
 npm-debug.log*
 .DS_Store
