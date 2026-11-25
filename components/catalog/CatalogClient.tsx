@@ -5,6 +5,7 @@ import Link from "next/link";
 import { StudioHeader } from "@/components/studio/StudioHeader";
 import { PixelPromptButton } from "@/components/ui/pixel-prompt-button";
 import { HeatDistortion } from "@/components/ui/heat-distortion";
+import { PaperBurn } from "@/components/ui/paper-burn";
 
 const PREVIEW_STAGE_STYLE: React.CSSProperties = {
   backgroundColor: "#09090d",
@@ -200,6 +201,60 @@ export function CatalogClient() {
 
               <Link
                 href="/playground/heat-distortion"
+                style={ACTION_LINK_STYLE}
+              >
+                Open playground
+              </Link>
+            </div>
+          </article>
+
+          <article className="catalog-card">
+            <div style={PREVIEW_STAGE_STYLE}>
+              <PaperBurn size="md" />
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                backgroundColor: "#16161a",
+                borderTopWidth: 1,
+                borderTopStyle: "solid",
+                borderTopColor: "#24242b",
+                padding: "18px 20px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                gap: 16
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <Link
+                  href="/playground/paper-burn"
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    letterSpacing: "-0.01em",
+                    color: "#f4f4f5",
+                    textDecoration: "none"
+                  }}
+                >
+                  Paper Burn
+                </Link>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 13.5,
+                    lineHeight: 1.5,
+                    color: "#9a9aa6"
+                  }}
+                >
+                  Press-and-hold button that burns away with WebGL embers,
+                  random drifting ashes, and a built-in Restore action.
+                </p>
+              </div>
+
+              <Link
+                href="/playground/paper-burn"
                 style={ACTION_LINK_STYLE}
               >
                 Open playground

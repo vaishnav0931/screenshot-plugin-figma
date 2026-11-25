@@ -27,3 +27,10 @@ export function loadPixelButtonSource(): string {
 export function loadHeatDistortionSource(): string {
   return loadComponentSource("heat-distortion.tsx");
 }
+
+/**
+ * Load the self-contained PaperBurn TSX source for studio code export.
+ */
+export function loadPaperBurnSource(): string {
+  return loadComponentSource("paper-burn.tsx");
+}

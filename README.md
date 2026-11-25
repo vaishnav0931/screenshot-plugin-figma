@@ -23,6 +23,10 @@ A copy-pasteable, zero-dependency **React + TypeScript component library** built
    - Real-time native **WebGL1** heat-shimmer shader component (`"use client"`, `React.forwardRef<HeatDistortionHandle, HeatDistortionProps>`, zero dependencies beyond `react`).
    - Supports typography mode (multiline text, font stack, weight, size, letter spacing, line height) and image mode (`contain` / `cover` scaling), distortion waves & turbulence, chromatic aberration, directional heat mask, localized mouse heat boost, and PNG export (`exportPngBlob()`, `downloadPng()`, and **Copy PNG for Figma**).
 
+3. **Paper Burn** ([`components/ui/paper-burn.tsx`](./components/ui/paper-burn.tsx))
+   - Interactive press-and-hold **WebGL1** button component (`"use client"`, `React.forwardRef<PaperBurnHandle, PaperBurnProps>`, zero dependencies beyond `react`).
+   - Starts intact and ignites right where you press and hold, simulating multi-octave FBM ragged tearing, incandescent ember rims, carbonized char, random tumbling flying ash flakes during and after burn, a built-in **Restore** button, and transparent alpha cutouts ready for **Copy PNG for Figma** or **Save PNG**.
+
 ---
 
 ## Using in Your React Project
@@ -86,6 +90,7 @@ Available routes:
 - <http://localhost:3000> — Unified **Components** catalog page listing live interactive previews for all components
 - <http://localhost:3000/playground/pixel-prompt-button> — **Pixel Prompt Button** interactive playground
 - <http://localhost:3000/playground/heat-distortion> — **Heat Distortion** interactive playground
+- <http://localhost:3000/playground/paper-burn> — **Paper Burn** interactive playground
 
 ---
 
