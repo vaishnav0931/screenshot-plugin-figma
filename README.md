@@ -1,4 +1,4 @@
-# Pixel UI — React Component Library & Figma-Ready UI Kit
+ZombieUI — React Component Library & Figma-Ready UI Kit
 
 A copy-pasteable, zero-dependency **React + TypeScript component library** built for modern web apps **and ready to use in your Figma projects** — featuring a unified component catalog (`/`) where every component opens directly into its interactive studio playground, complete with 1-click Figma export and JSX/TSX source copying.
 
