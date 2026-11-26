@@ -5,17 +5,17 @@ import Link from "next/link";
 
 export type StudioRouteHref =
   | "/"
-  | "/button-studio"
+  | "/test"
   | "/playground/pixel-prompt-button"
   | "/playground/heat-distortion"
   | "/playground/paper-burn";
 
 const NAV_ITEMS: ReadonlyArray<{ href: StudioRouteHref; label: string }> = [
   { href: "/", label: "Components" },
-  { href: "/button-studio", label: "Button Studio" },
   { href: "/playground/pixel-prompt-button", label: "Pixel Prompt Button" },
   { href: "/playground/heat-distortion", label: "Heat Distortion" },
-  { href: "/playground/paper-burn", label: "Paper Burn" }
+  { href: "/playground/paper-burn", label: "Paper Burn" },
+  { href: "/test", label: "Test" }
 ];
 
 export function StudioHeaderButton({
