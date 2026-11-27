@@ -3,6 +3,9 @@
 node_modules/
 .next/
 .next-dev/
+.open-next/
+.wrangler/
+.dev.vars
 next-env.d.ts
 tsconfig.tsbuildinfo
 npm-debug.log*
