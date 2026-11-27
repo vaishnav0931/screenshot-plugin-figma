@@ -6,12 +6,14 @@ import Link from "next/link";
 export type StudioRouteHref =
   | "/"
   | "/test"
+  | "/playground/silk-designs-card"
   | "/playground/pixel-prompt-button"
   | "/playground/heat-distortion"
   | "/playground/paper-burn";
 
 const NAV_ITEMS: ReadonlyArray<{ href: StudioRouteHref; label: string }> = [
   { href: "/", label: "Components" },
+  { href: "/playground/silk-designs-card", label: "Silk Designs Card" },
   { href: "/playground/pixel-prompt-button", label: "Pixel Prompt Button" },
   { href: "/playground/heat-distortion", label: "Heat Distortion" },
   { href: "/playground/paper-burn", label: "Paper Burn" },

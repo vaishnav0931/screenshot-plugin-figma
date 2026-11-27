@@ -34,3 +34,10 @@ export function loadHeatDistortionSource(): string {
 export function loadPaperBurnSource(): string {
   return loadComponentSource("paper-burn.tsx");
 }
+
+/**
+ * Load the self-contained SilkDesignsCard TSX source for studio code export.
+ */
+export function loadSilkDesignsCardSource(): string {
+  return loadComponentSource("silk-designs-card.tsx");
+}
